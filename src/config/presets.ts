@@ -6,7 +6,7 @@ export const PRESETS: Preset[] = [
   {
     id: "qwen-plus",
     name: "Qwen 3.6 Plus",
-    baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    baseUrl: "https://coding.dashscope.aliyuncs.com/apps/anthropic",
     modelId: "qwen3.6-plus",
   },
   {
