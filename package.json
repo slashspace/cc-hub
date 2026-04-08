@@ -1,0 +1,27 @@
+{
+  "name": "cc-model-manager",
+  "version": "0.1.0",
+  "description": "TUI for managing Claude Code model configurations",
+  "type": "module",
+  "bin": {
+    "ccmm": "./dist/cli.js"
+  },
+  "scripts": {
+    "dev": "tsx watch src/cli.ts",
+    "build": "node build.mjs",
+    "start": "node dist/cli.js"
+  },
+  "dependencies": {
+    "ink": "^6.0.0",
+    "react": "^19.0.0",
+    "ink-select-input": "^6.0.0",
+    "ink-text-input": "^6.0.0",
+    "ink-spinner": "^5.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/react": "^19.0.0",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0"
+  }
+}
