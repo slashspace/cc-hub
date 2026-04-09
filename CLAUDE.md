@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**cc-hub** (binary: `ccmm`) is a terminal TUI tool for managing Claude Code model configurations. It lets users switch between LLM providers/models without manually editing `~/.claude/settings.json`.
+**cc-hub** (binary: `cc-hub`) is a terminal TUI tool for managing Claude Code model configurations. It lets users switch between LLM providers/models without manually editing `~/.claude/settings.json`.
 
 ## Commands
 

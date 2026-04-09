@@ -1,10 +1,10 @@
 {
-  "name": "cc-model-manager",
+  "name": "cc-hub",
   "version": "0.1.0",
   "description": "TUI for managing Claude Code model configurations",
   "type": "module",
   "bin": {
-    "ccmm": "./dist/cli.js"
+    "cc-hub": "./dist/cli.js"
   },
   "scripts": {
     "dev": "pnpm run build && pnpm start",
