@@ -17,9 +17,11 @@
     "ink-select-input": "^6.0.0",
     "ink-spinner": "^5.0.0",
     "ink-text-input": "^6.0.0",
+    "json5": "^2.2.3",
     "react": "^19.0.0"
   },
   "devDependencies": {
+    "@types/json5": "^2.2.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "nodemon": "^3.1.14",

@@ -2,114 +2,107 @@
 
 import React from "react";
 import { useApp, useInput, Box, Text } from "ink";
-import { ModelConfig } from "../types.js";
+import { ConfigStore } from "../types.js";
 import {
-  loadStore,
-  saveStore,
-  addModel,
-  updateModel,
-  removeModel,
+  loadConfig,
+  saveConfig,
   setActiveModel,
-  getModel,
-} from "../store/model-store.js";
+  findModel,
+  getAllModels,
+  updateScenarioModels,
+  removeModelFromProvider,
+  getConfigError,
+  clearConfigError,
+} from "../store/config-store.js";
 import { activateModel } from "../store/claude-config.js";
 import { Dashboard } from "./dashboard.js";
-import { AddModel } from "./add-model.js";
-import { EditModel } from "./edit-model.js";
+import { ScenarioConfig } from "./scenario-config.js";
 import { Confirm } from "./confirm.js";
 
 type Screen =
   | { type: "dashboard" }
-  | { type: "add" }
-  | { type: "edit"; modelId: string }
+  | { type: "scenario" }
   | { type: "confirm"; message: string; onConfirm: () => void };
 
 export function App() {
   const { exit } = useApp();
-  const [store, setStore] = React.useState(() => loadStore());
+  const [store, setStore] = React.useState(() => loadConfig());
   const [screen, setScreen] = React.useState<Screen>({ type: "dashboard" });
-  const [statusMessage, setStatusMessage] = React.useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = React.useState<string | null>(
+    () => getConfigError(),
+  );
   const [selectedIndex, setSelectedIndex] = React.useState(0);
 
   // Auto-clear status message
   React.useEffect(() => {
     if (!statusMessage) return;
-    const timer = setTimeout(() => setStatusMessage(null), 2000);
+    const timer = setTimeout(() => setStatusMessage(null), 3000);
     return () => clearTimeout(timer);
   }, [statusMessage]);
 
-  // Reset selection when models change
   React.useEffect(() => {
-    if (selectedIndex >= store.models.length && store.models.length > 0) {
-      setSelectedIndex(store.models.length - 1);
-    }
-  }, [store.models.length, selectedIndex]);
+    clearConfigError();
+  }, []);
 
-  // --- Action handlers (stable refs) ---
+  // Flatten rows for navigation
+  function getFlatRows() {
+    return store.providers.flatMap((p) => [
+      { type: "header" as const, providerId: p.id },
+      ...p.models.map((m) => ({ type: "model" as const, modelId: m.id })),
+    ]);
+  }
+
+  // Clamp selection to a valid model row
+  function clampToModel(idx: number): number {
+    const rows = getFlatRows();
+    if (rows.length === 0) return 0;
+    let i = Math.max(0, Math.min(idx, rows.length - 1));
+    while (i < rows.length && rows[i].type === "header") i++;
+    if (i >= rows.length) {
+      i = rows.length - 1;
+      while (i >= 0 && rows[i].type === "header") i--;
+    }
+    return Math.max(0, i);
+  }
+
+  React.useEffect(() => {
+    setSelectedIndex((prev) => clampToModel(prev));
+  }, [store.providers.length]);
+
+  // --- Action handlers ---
 
   const handleSelect = React.useCallback(
-    (id: string) => {
-      const updated = setActiveModel(store, id);
+    (modelId: string) => {
+      const updated = setActiveModel(store, modelId);
       setStore(updated);
-      saveStore(updated);
-      const model = getModel(updated, id);
-      if (model) {
-        activateModel(model);
-        setStatusMessage(`已切换至 ${model.name}`);
+      saveConfig(updated);
+      const resolved = findModel(updated, modelId);
+      if (resolved) {
+        activateModel(updated, modelId, updated.scenarioModels);
+        setStatusMessage(`已切换至 ${resolved.model.name}`);
       }
     },
     [store],
   );
 
-  const handleEdit = React.useCallback(
-    (id: string) => setScreen({ type: "edit", modelId: id }),
-    [],
-  );
-
-  const handleAddSubmit = React.useCallback(
-    (model: ModelConfig) => {
-      const updated = addModel(store, model);
-      setStore(updated);
-      saveStore(updated);
-      setScreen({ type: "dashboard" });
-      setStatusMessage(`已添加 ${model.name}`);
-    },
-    [store],
-  );
-
-  const handleAddCancel = React.useCallback(
-    () => setScreen({ type: "dashboard" }),
-    [],
-  );
-
-  const handleEditSave = React.useCallback(
-    (updates: Partial<ModelConfig>) => {
-      const editScreen = screen as Extract<Screen, { type: "edit" }>;
-      const updated = updateModel(store, editScreen.modelId, updates);
-      setStore(updated);
-      saveStore(updated);
-      setScreen({ type: "dashboard" });
-      setStatusMessage(`已更新 ${updates.name || editScreen.modelId}`);
-    },
-    [store, screen],
-  );
-
-  const handleEditCancel = React.useCallback(
-    () => setScreen({ type: "dashboard" }),
-    [],
-  );
-
   const handleDelete = React.useCallback(
-    (id: string) => {
-      const model = getModel(store, id);
-      if (!model) return;
+    (providerId: string, modelId: string) => {
+      const provider = store.providers.find((p) => p.id === providerId);
+      const model = provider?.models.find((m) => m.id === modelId);
+      if (!provider || !model) return;
       setScreen({
         type: "confirm",
-        message: `Delete model "${model.name}" (${id})?`,
+        message: `Delete model "${model.name}" (${model.id})?`,
         onConfirm: () => {
-          const updated = removeModel(store, id);
+          const updated = removeModelFromProvider(store, providerId, modelId);
+          // Remove provider if empty
+          const target = updated.providers.find((p) => p.id === providerId);
+          if (target && target.models.length === 0) {
+            updated.providers = updated.providers.filter((p) => p.id !== providerId);
+            if (updated.activeProviderId === providerId) updated.activeProviderId = null;
+          }
           setStore(updated);
-          saveStore(updated);
+          saveConfig(updated);
           setScreen({ type: "dashboard" });
           setStatusMessage(`已删除 ${model.name}`);
         },
@@ -123,10 +116,28 @@ export function App() {
     [],
   );
 
+  const handleScenarioSave = React.useCallback(
+    (updates: Parameters<typeof updateScenarioModels>[1]) => {
+      const updated = updateScenarioModels(store, updates);
+      setStore(updated);
+      saveConfig(updated);
+      setScreen({ type: "dashboard" });
+      if (updated.activeModelId) {
+        activateModel(updated, updated.activeModelId, updated.scenarioModels);
+      }
+      setStatusMessage("Scenario models updated");
+    },
+    [store],
+  );
+
+  const handleScenarioCancel = React.useCallback(
+    () => setScreen({ type: "dashboard" }),
+    [],
+  );
+
   // --- Centralized keyboard handling ---
 
   useInput((input, key) => {
-    // Global: quit from any screen
     if (input === "q") {
       exit();
       return;
@@ -134,8 +145,8 @@ export function App() {
 
     switch (screen.type) {
       case "dashboard": {
-        if (input === "a") {
-          setScreen({ type: "add" });
+        if (input === "s") {
+          setScreen({ type: "scenario" });
           return;
         }
         if (key.escape) {
@@ -143,39 +154,40 @@ export function App() {
           return;
         }
         if (key.upArrow) {
-          setSelectedIndex((i) => Math.max(0, i - 1));
+          const rows = getFlatRows();
+          let next = selectedIndex - 1;
+          while (next >= 0 && rows[next]?.type === "header") next--;
+          setSelectedIndex(Math.max(0, next));
           return;
         }
         if (key.downArrow) {
-          setSelectedIndex((i) =>
-            Math.max(0, Math.min(store.models.length - 1, i + 1)),
-          );
+          const rows = getFlatRows();
+          let next = selectedIndex + 1;
+          while (next < rows.length && rows[next]?.type === "header") next++;
+          setSelectedIndex(Math.min(rows.length - 1, next));
           return;
         }
-        if (key.return && store.models.length > 0) {
-          handleSelect(store.models[selectedIndex].id);
+        if (key.return) {
+          const rows = getFlatRows();
+          const row = rows[selectedIndex];
+          if (row?.type === "model") handleSelect(row.modelId);
           return;
         }
-        if (input === "e" && store.models.length > 0) {
-          handleEdit(store.models[selectedIndex].id);
-          return;
-        }
-        if (input === "d" && store.models.length > 0) {
-          handleDelete(store.models[selectedIndex].id);
+        if (input === "d") {
+          const rows = getFlatRows();
+          const row = rows[selectedIndex];
+          if (row?.type === "model") {
+            const provider = store.providers.find((p) =>
+              p.models.some((m) => m.id === row.modelId),
+            );
+            if (provider) handleDelete(provider.id, row.modelId);
+          }
           return;
         }
         return;
       }
 
-      case "add": {
-        if (input === "escape") {
-          setScreen({ type: "dashboard" });
-          return;
-        }
-        return;
-      }
-
-      case "edit": {
+      case "scenario": {
         if (input === "escape") {
           setScreen({ type: "dashboard" });
           return;
@@ -212,28 +224,28 @@ export function App() {
           store={store}
           selectedIndex={selectedIndex}
           onSelect={handleSelect}
-          onAdd={() => setScreen({ type: "add" })}
-          onEdit={handleEdit}
           onDelete={handleDelete}
-          onNavigate={(dir) =>
-            setSelectedIndex((i) =>
-              dir === "up"
-                ? Math.max(0, i - 1)
-                : Math.max(0, Math.min(store.models.length - 1, i + 1)),
-            )
-          }
+          onScenario={() => setScreen({ type: "scenario" })}
+          onNavigate={(dir) => {
+            const rows = getFlatRows();
+            if (dir === "up") {
+              let next = selectedIndex - 1;
+              while (next >= 0 && rows[next]?.type === "header") next--;
+              setSelectedIndex(Math.max(0, next));
+            } else {
+              let next = selectedIndex + 1;
+              while (next < rows.length && rows[next]?.type === "header") next++;
+              setSelectedIndex(Math.min(rows.length - 1, next));
+            }
+          }}
         />
       )}
 
-      {screen.type === "add" && (
-        <AddModel onSubmit={handleAddSubmit} onCancel={handleAddCancel} />
-      )}
-
-      {screen.type === "edit" && (
-        <EditModel
-          model={getModel(store, screen.modelId)!}
-          onSave={handleEditSave}
-          onCancel={handleEditCancel}
+      {screen.type === "scenario" && (
+        <ScenarioConfig
+          store={store}
+          onSave={handleScenarioSave}
+          onCancel={handleScenarioCancel}
         />
       )}
 
