@@ -4,7 +4,7 @@
   "description": "TUI for managing Claude Code model configurations",
   "type": "module",
   "bin": {
-    "cc-hub": "./dist/cli.js"
+    "cc-hub": "dist/cli.js"
   },
   "scripts": {
     "dev": "pnpm run build && pnpm start",
@@ -27,5 +27,19 @@
     "nodemon": "^3.1.14",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0"
-  }
+  },
+  "license": "MIT",
+  "keywords": [
+    "claude",
+    "claude-code",
+    "llm",
+    "tui"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/slashspace/cc-hub.git"
+  },
+  "files": [
+    "dist"
+  ]
 }
