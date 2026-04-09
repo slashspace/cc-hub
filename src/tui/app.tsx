@@ -2,13 +2,12 @@
 
 import React from "react";
 import { useApp, useInput, Box, Text } from "ink";
-import { ConfigStore } from "../types.js";
+import { ScenarioModels } from "../types.js";
 import {
   loadConfig,
   saveConfig,
   setActiveModel,
   findModel,
-  getAllModels,
   updateScenarioModels,
   removeModelFromProvider,
   getConfigError,
@@ -28,8 +27,8 @@ export function App() {
   const { exit } = useApp();
   const [store, setStore] = React.useState(() => loadConfig());
   const [screen, setScreen] = React.useState<Screen>({ type: "dashboard" });
-  const [statusMessage, setStatusMessage] = React.useState<string | null>(
-    () => getConfigError(),
+  const [statusMessage, setStatusMessage] = React.useState<string | null>(() =>
+    getConfigError(),
   );
   const [selectedIndex, setSelectedIndex] = React.useState(0);
 
@@ -74,11 +73,18 @@ export function App() {
   const handleSelect = React.useCallback(
     (modelId: string) => {
       const updated = setActiveModel(store, modelId);
-      setStore(updated);
-      saveConfig(updated);
-      const resolved = findModel(updated, modelId);
+      // Always sync scenarioModels to the selected model
+      const withScenarios = updateScenarioModels(updated, {
+        opusModelId: modelId,
+        sonnetModelId: modelId,
+        haikuModelId: modelId,
+        subagentModelId: modelId,
+      });
+      setStore(withScenarios);
+      saveConfig(withScenarios);
+      const resolved = findModel(withScenarios, modelId);
       if (resolved) {
-        activateModel(updated, modelId, updated.scenarioModels);
+        activateModel(withScenarios, modelId, withScenarios.scenarioModels);
         setStatusMessage(`已切换至 ${resolved.model.name}`);
       }
     },
@@ -98,8 +104,11 @@ export function App() {
           // Remove provider if empty
           const target = updated.providers.find((p) => p.id === providerId);
           if (target && target.models.length === 0) {
-            updated.providers = updated.providers.filter((p) => p.id !== providerId);
-            if (updated.activeProviderId === providerId) updated.activeProviderId = null;
+            updated.providers = updated.providers.filter(
+              (p) => p.id !== providerId,
+            );
+            if (updated.activeProviderId === providerId)
+              updated.activeProviderId = null;
           }
           setStore(updated);
           saveConfig(updated);
@@ -117,8 +126,11 @@ export function App() {
   );
 
   const handleScenarioSave = React.useCallback(
-    (updates: Parameters<typeof updateScenarioModels>[1]) => {
-      const updated = updateScenarioModels(store, updates);
+    (updates: ScenarioModels) => {
+      const updated = {
+        ...store,
+        scenarioModels: updates,
+      };
       setStore(updated);
       saveConfig(updated);
       setScreen({ type: "dashboard" });
@@ -234,7 +246,8 @@ export function App() {
               setSelectedIndex(Math.max(0, next));
             } else {
               let next = selectedIndex + 1;
-              while (next < rows.length && rows[next]?.type === "header") next++;
+              while (next < rows.length && rows[next]?.type === "header")
+                next++;
               setSelectedIndex(Math.min(rows.length - 1, next));
             }
           }}
