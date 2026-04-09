@@ -7,7 +7,7 @@
     "ccmm": "./dist/cli.js"
   },
   "scripts": {
-    "dev": "tsx watch src/cli.ts",
+    "dev": "tsx watch src/cli.tsx",
     "build": "node build.mjs",
     "start": "node dist/cli.js"
   },
