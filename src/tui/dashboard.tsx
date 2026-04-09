@@ -64,9 +64,7 @@ export function Dashboard({ store, selectedIndex }: DashboardProps) {
             ]}
             rows={rows.map((row) => [
               {
-                text: row.isSelected
-                  ? `► ${row.providerName}`
-                  : row.providerName,
+                text: row.providerName,
                 color: row.isSelected ? "green" : undefined,
                 bold: row.isSelected,
               },

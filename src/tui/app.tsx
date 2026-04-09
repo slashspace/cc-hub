@@ -46,7 +46,7 @@ export function App() {
   // Model-only rows for navigation (no headers)
   function getModelRows() {
     return store.providers.flatMap((p) =>
-      p.models.map((m) => ({ providerId: p.id, modelId: m }))
+      p.models.map((m) => ({ providerId: p.id, modelId: m })),
     );
   }
 
@@ -87,15 +87,30 @@ export function App() {
         type: "confirm",
         message: `Delete model "${modelId}"?`,
         onConfirm: () => {
-          const updated = removeModelFromProvider(store, providerId, modelId);
-          // Remove provider if empty
-          const target = updated.providers.find((p) => p.id === providerId);
-          if (target && target.models.length === 0) {
-            updated.providers = updated.providers.filter(
-              (p) => p.id !== providerId,
-            );
-            if (updated.activeProviderId === providerId)
-              updated.activeProviderId = null;
+          let updated = removeModelFromProvider(store, providerId, modelId);
+          // Clean up scenarioModels references to the deleted model
+          const sm = updated.scenarioModels;
+          if (
+            sm.opusModelId === modelId ||
+            sm.sonnetModelId === modelId ||
+            sm.haikuModelId === modelId ||
+            sm.subagentModelId === modelId
+          ) {
+            updated = {
+              ...updated,
+              scenarioModels: {
+                opusModelId:
+                  sm.opusModelId === modelId ? undefined : sm.opusModelId,
+                sonnetModelId:
+                  sm.sonnetModelId === modelId ? undefined : sm.sonnetModelId,
+                haikuModelId:
+                  sm.haikuModelId === modelId ? undefined : sm.haikuModelId,
+                subagentModelId:
+                  sm.subagentModelId === modelId
+                    ? undefined
+                    : sm.subagentModelId,
+              },
+            };
           }
           setStore(updated);
           saveConfig(updated);
@@ -236,15 +251,24 @@ export function App() {
             <Text>{screen.message}</Text>
             <Box marginTop={1} gap={2}>
               <Text>
-                <Text inverse bold> Y </Text>
+                <Text inverse bold>
+                  {" "}
+                  Y{" "}
+                </Text>
                 <Text dimColor> Yes</Text>
               </Text>
               <Text>
-                <Text inverse bold> N </Text>
+                <Text inverse bold>
+                  {" "}
+                  N{" "}
+                </Text>
                 <Text dimColor> No</Text>
               </Text>
               <Text>
-                <Text inverse bold> Esc </Text>
+                <Text inverse bold>
+                  {" "}
+                  Esc{" "}
+                </Text>
                 <Text dimColor> Cancel</Text>
               </Text>
             </Box>
