@@ -12,7 +12,7 @@ import { homedir } from "os";
 import JSON5 from "json5";
 import { ConfigStore, Provider, ScenarioModels } from "../types.js";
 
-const CONFIG_DIR = join(homedir(), ".cc-model-hub");
+const CONFIG_DIR = join(homedir(), ".cc-hub");
 const CONFIG_PATH = join(CONFIG_DIR, "config.json");
 
 const DEFAULT_STORE: ConfigStore = {
@@ -35,8 +35,8 @@ function atomicWrite(filePath: string, content: string): void {
 }
 
 const EXAMPLE_CONFIG = `{
-  // CC Model Hub configuration
-  // Edit this file to add or modify providers, then restart ccmm.
+  // cc-hub configuration
+  // Edit this file to add or modify providers, then restart.
 
   "providers": [
   //  {

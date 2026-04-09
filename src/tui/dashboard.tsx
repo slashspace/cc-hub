@@ -36,7 +36,7 @@ export function Dashboard({ store, selectedIndex }: DashboardProps) {
   return (
     <Box flexDirection="column" paddingX={1}>
       {/* Title */}
-      <Text bold>CC Model Hub</Text>
+      <Text bold>cc-hub</Text>
 
       {/* Subtitle */}
       <Box marginTop={1}>
@@ -51,7 +51,7 @@ export function Dashboard({ store, selectedIndex }: DashboardProps) {
           <Box flexDirection="column" marginTop={1}>
             <Text color="dim">No providers configured.</Text>
             <Text color="dim">
-              Edit <Text color="cyan">~/.cc-model-hub/config.json</Text> to add
+              Edit <Text color="cyan">~/.cc-hub/config.json</Text> to add
               providers, then restart.
             </Text>
           </Box>

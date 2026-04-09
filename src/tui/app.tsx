@@ -73,7 +73,6 @@ export function App() {
       const resolved = findModel(withScenarios, modelId);
       if (resolved) {
         activateModel(withScenarios, modelId, withScenarios.scenarioModels);
-        setStatusMessage(`Switched to ${resolved.modelId}`);
       }
     },
     [store],
@@ -135,11 +134,10 @@ export function App() {
       };
       setStore(updated);
       saveConfig(updated);
-      setScreen({ type: "dashboard" });
+      // Stay on scenario page, only Esc goes back to dashboard
       if (updated.activeModelId) {
         activateModel(updated, updated.activeModelId, updated.scenarioModels);
       }
-      setStatusMessage("Scenario models updated");
     },
     [store],
   );
