@@ -44,7 +44,9 @@ export function activateModel(model: ModelConfig): void {
 export function getActiveModelName(): string | null {
   if (!existsSync(CLAUDE_SETTINGS)) return null;
   try {
-    const settings: ClaudeSettings = JSON.parse(readFileSync(CLAUDE_SETTINGS, "utf8"));
+    const settings: ClaudeSettings = JSON.parse(
+      readFileSync(CLAUDE_SETTINGS, "utf8"),
+    );
     return settings.env?.ANTHROPIC_BASE_URL || null;
   } catch {
     return null;

@@ -7,21 +7,23 @@
     "ccmm": "./dist/cli.js"
   },
   "scripts": {
-    "dev": "tsx watch src/cli.tsx",
+    "dev": "pnpm run build && pnpm start",
+    "dev:watch": "nodemon --watch src --ext ts,tsx --exec 'pnpm run build && pnpm start'",
     "build": "node build.mjs",
     "start": "node dist/cli.js"
   },
   "dependencies": {
     "ink": "^6.0.0",
-    "react": "^19.0.0",
     "ink-select-input": "^6.0.0",
+    "ink-spinner": "^5.0.0",
     "ink-text-input": "^6.0.0",
-    "ink-spinner": "^5.0.0"
+    "react": "^19.0.0"
   },
   "devDependencies": {
-    "typescript": "^5.7.0",
-    "@types/react": "^19.0.0",
     "@types/node": "^22.0.0",
-    "tsx": "^4.19.0"
+    "@types/react": "^19.0.0",
+    "nodemon": "^3.1.14",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
   }
 }

@@ -1,6 +1,12 @@
 // src/store/model-store.ts
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync } from "fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+  renameSync,
+} from "fs";
 import { join } from "path";
 import { homedir } from "os";
 import { ModelConfig, ModelStore } from "../types.js";
@@ -62,7 +68,7 @@ export function addModel(store: ModelStore, model: ModelConfig): ModelStore {
 export function updateModel(
   store: ModelStore,
   id: string,
-  updates: Partial<ModelConfig>
+  updates: Partial<ModelConfig>,
 ): ModelStore {
   return {
     ...store,
@@ -85,6 +91,9 @@ export function setActiveModel(store: ModelStore, id: string): ModelStore {
   return { ...store, activeModelId: id };
 }
 
-export function getModel(store: ModelStore, id: string): ModelConfig | undefined {
+export function getModel(
+  store: ModelStore,
+  id: string,
+): ModelConfig | undefined {
   return store.models.find((m) => m.id === id);
 }

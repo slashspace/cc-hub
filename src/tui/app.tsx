@@ -1,9 +1,17 @@
 // src/tui/app.tsx
 
 import React from "react";
-import { useApp, Box, Text } from "ink";
+import { useApp, useInput, Box, Text } from "ink";
 import { ModelConfig } from "../types.js";
-import { loadStore, saveStore, addModel, updateModel, removeModel, setActiveModel, getModel } from "../store/model-store.js";
+import {
+  loadStore,
+  saveStore,
+  addModel,
+  updateModel,
+  removeModel,
+  setActiveModel,
+  getModel,
+} from "../store/model-store.js";
 import { activateModel } from "../store/claude-config.js";
 import { Dashboard } from "./dashboard.js";
 import { AddModel } from "./add-model.js";
@@ -16,148 +24,223 @@ type Screen =
   | { type: "edit"; modelId: string }
   | { type: "confirm"; message: string; onConfirm: () => void };
 
-type AppState = {
-  screen: Screen;
-  statusMessage: string | null;
-};
-
 export function App() {
   const { exit } = useApp();
   const [store, setStore] = React.useState(() => loadStore());
-  const [state, setState] = React.useState<AppState>({
-    screen: { type: "dashboard" },
-    statusMessage: null,
-  });
+  const [screen, setScreen] = React.useState<Screen>({ type: "dashboard" });
+  const [statusMessage, setStatusMessage] = React.useState<string | null>(null);
+  const [selectedIndex, setSelectedIndex] = React.useState(0);
 
-  // Auto-clear status message after a delay
+  // Auto-clear status message
   React.useEffect(() => {
-    if (!state.statusMessage) return;
-    const timer = setTimeout(() => {
-      setState((s) => ({ ...s, statusMessage: null }));
-    }, 2000);
+    if (!statusMessage) return;
+    const timer = setTimeout(() => setStatusMessage(null), 2000);
     return () => clearTimeout(timer);
-  }, [state.statusMessage]);
+  }, [statusMessage]);
 
-  // Dashboard handlers
-  const handleSelect = (id: string) => {
-    const updated = setActiveModel(store, id);
-    setStore(updated);
-    saveStore(updated);
-    const model = getModel(updated, id);
-    if (model) {
-      activateModel(model);
-      setState((s) => ({
-        ...s,
-        statusMessage: `已切换至 ${model.name}`,
-      }));
+  // Reset selection when models change
+  React.useEffect(() => {
+    if (selectedIndex >= store.models.length && store.models.length > 0) {
+      setSelectedIndex(store.models.length - 1);
     }
-  };
+  }, [store.models.length, selectedIndex]);
 
-  const handleAdd = () => {
-    setState((s) => ({ ...s, screen: { type: "add" } }));
-  };
+  // --- Action handlers (stable refs) ---
 
-  const handleEdit = (id: string) => {
-    setState((s) => ({ ...s, screen: { type: "edit", modelId: id } }));
-  };
+  const handleSelect = React.useCallback(
+    (id: string) => {
+      const updated = setActiveModel(store, id);
+      setStore(updated);
+      saveStore(updated);
+      const model = getModel(updated, id);
+      if (model) {
+        activateModel(model);
+        setStatusMessage(`已切换至 ${model.name}`);
+      }
+    },
+    [store],
+  );
 
-  const handleDelete = (id: string) => {
-    const model = getModel(store, id);
-    if (!model) return;
-    setState((s) => ({
-      ...s,
-      screen: {
+  const handleEdit = React.useCallback(
+    (id: string) => setScreen({ type: "edit", modelId: id }),
+    [],
+  );
+
+  const handleAddSubmit = React.useCallback(
+    (model: ModelConfig) => {
+      const updated = addModel(store, model);
+      setStore(updated);
+      saveStore(updated);
+      setScreen({ type: "dashboard" });
+      setStatusMessage(`已添加 ${model.name}`);
+    },
+    [store],
+  );
+
+  const handleAddCancel = React.useCallback(
+    () => setScreen({ type: "dashboard" }),
+    [],
+  );
+
+  const handleEditSave = React.useCallback(
+    (updates: Partial<ModelConfig>) => {
+      const editScreen = screen as Extract<Screen, { type: "edit" }>;
+      const updated = updateModel(store, editScreen.modelId, updates);
+      setStore(updated);
+      saveStore(updated);
+      setScreen({ type: "dashboard" });
+      setStatusMessage(`已更新 ${updates.name || editScreen.modelId}`);
+    },
+    [store, screen],
+  );
+
+  const handleEditCancel = React.useCallback(
+    () => setScreen({ type: "dashboard" }),
+    [],
+  );
+
+  const handleDelete = React.useCallback(
+    (id: string) => {
+      const model = getModel(store, id);
+      if (!model) return;
+      setScreen({
         type: "confirm",
         message: `Delete model "${model.name}" (${id})?`,
         onConfirm: () => {
           const updated = removeModel(store, id);
           setStore(updated);
           saveStore(updated);
-          setState((s) => ({
-            ...s,
-            screen: { type: "dashboard" },
-            statusMessage: `已删除 ${model.name}`,
-          }));
+          setScreen({ type: "dashboard" });
+          setStatusMessage(`已删除 ${model.name}`);
         },
-      },
-    }));
-  };
+      });
+    },
+    [store],
+  );
 
-  const handleQuit = () => exit();
+  const handleConfirmCancel = React.useCallback(
+    () => setScreen({ type: "dashboard" }),
+    [],
+  );
 
-  // Add handler
-  const handleAddSubmit = (model: ModelConfig) => {
-    const updated = addModel(store, model);
-    setStore(updated);
-    saveStore(updated);
-    setState((s) => ({
-      ...s,
-      screen: { type: "dashboard" },
-      statusMessage: `已添加 ${model.name}`,
-    }));
-  };
+  // --- Centralized keyboard handling ---
 
-  const handleAddCancel = () => {
-    setState((s) => ({ ...s, screen: { type: "dashboard" } }));
-  };
+  useInput((input, key) => {
+    // Global: quit from any screen
+    if (input === "q") {
+      exit();
+      return;
+    }
 
-  // Edit handler
-  const handleEditSave = (updates: Partial<ModelConfig>) => {
-    const editScreen = state.screen as Extract<Screen, { type: "edit" }>;
-    const updated = updateModel(store, editScreen.modelId, updates);
-    setStore(updated);
-    saveStore(updated);
-    setState((s) => ({
-      ...s,
-      screen: { type: "dashboard" },
-      statusMessage: `已更新 ${updates.name || editScreen.modelId}`,
-    }));
-  };
+    switch (screen.type) {
+      case "dashboard": {
+        if (input === "a") {
+          setScreen({ type: "add" });
+          return;
+        }
+        if (key.escape) {
+          exit();
+          return;
+        }
+        if (key.upArrow) {
+          setSelectedIndex((i) => Math.max(0, i - 1));
+          return;
+        }
+        if (key.downArrow) {
+          setSelectedIndex((i) =>
+            Math.max(0, Math.min(store.models.length - 1, i + 1)),
+          );
+          return;
+        }
+        if (key.return && store.models.length > 0) {
+          handleSelect(store.models[selectedIndex].id);
+          return;
+        }
+        if (input === "e" && store.models.length > 0) {
+          handleEdit(store.models[selectedIndex].id);
+          return;
+        }
+        if (input === "d" && store.models.length > 0) {
+          handleDelete(store.models[selectedIndex].id);
+          return;
+        }
+        return;
+      }
 
-  const handleEditCancel = () => {
-    setState((s) => ({ ...s, screen: { type: "dashboard" } }));
-  };
+      case "add": {
+        if (input === "escape") {
+          setScreen({ type: "dashboard" });
+          return;
+        }
+        return;
+      }
 
-  // Confirm handler
-  const handleConfirmCancel = () => {
-    setState((s) => ({ ...s, screen: { type: "dashboard" } }));
-  };
+      case "edit": {
+        if (input === "escape") {
+          setScreen({ type: "dashboard" });
+          return;
+        }
+        return;
+      }
+
+      case "confirm": {
+        if (input === "y" || input === "Y") {
+          screen.onConfirm();
+          return;
+        }
+        if (input === "n" || input === "N" || input === "escape") {
+          setScreen({ type: "dashboard" });
+          return;
+        }
+        return;
+      }
+    }
+  });
+
+  // --- Render ---
 
   return (
     <Box flexDirection="column">
-      {state.statusMessage && (
+      {statusMessage && (
         <Box paddingX={1}>
-          <Text color="green">✓ {state.statusMessage}</Text>
+          <Text color="green">✓ {statusMessage}</Text>
         </Box>
       )}
 
-      {state.screen.type === "dashboard" && (
+      {screen.type === "dashboard" && (
         <Dashboard
           store={store}
+          selectedIndex={selectedIndex}
           onSelect={handleSelect}
-          onAdd={handleAdd}
+          onAdd={() => setScreen({ type: "add" })}
           onEdit={handleEdit}
           onDelete={handleDelete}
-          onQuit={handleQuit}
+          onNavigate={(dir) =>
+            setSelectedIndex((i) =>
+              dir === "up"
+                ? Math.max(0, i - 1)
+                : Math.max(0, Math.min(store.models.length - 1, i + 1)),
+            )
+          }
         />
       )}
 
-      {state.screen.type === "add" && (
+      {screen.type === "add" && (
         <AddModel onSubmit={handleAddSubmit} onCancel={handleAddCancel} />
       )}
 
-      {state.screen.type === "edit" && (
+      {screen.type === "edit" && (
         <EditModel
-          model={getModel(store, state.screen.modelId)!}
+          model={getModel(store, screen.modelId)!}
           onSave={handleEditSave}
           onCancel={handleEditCancel}
         />
       )}
 
-      {state.screen.type === "confirm" && (
+      {screen.type === "confirm" && (
         <Confirm
-          message={state.screen.message}
-          onConfirm={state.screen.onConfirm}
+          message={screen.message}
+          onConfirm={screen.onConfirm}
           onCancel={handleConfirmCancel}
         />
       )}

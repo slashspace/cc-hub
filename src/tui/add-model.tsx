@@ -3,7 +3,7 @@
 import React from "react";
 import { Box, Text, useInput } from "ink";
 import TextInput from "ink-text-input";
-import { ModelConfig, Preset } from "../types.js";
+import type { ModelConfig, Preset } from "../types.js";
 import { PRESETS } from "../config/presets.js";
 
 interface AddModelProps {
@@ -11,7 +11,12 @@ interface AddModelProps {
   onCancel: () => void;
 }
 
-type AddStep = "select-preset" | "enter-key" | "enter-baseurl" | "enter-modelid" | "enter-name";
+type AddStep =
+  | "select-preset"
+  | "enter-key"
+  | "enter-baseurl"
+  | "enter-modelid"
+  | "enter-name";
 
 interface AddState {
   step: AddStep;
@@ -32,19 +37,16 @@ export function AddModel({ onSubmit, onCancel }: AddModelProps) {
     customName: "",
   });
 
-  useInput((input, key) => {
-    if (input === "q" || input === "escape") {
-      onCancel();
-      return;
-    }
-    if (state.step === "select-preset" && key.return) {
-      setState((s) => ({ ...s, step: "enter-key" }));
-    }
-  });
-
   // Preset selection
   if (state.step === "select-preset") {
-    return <PresetSelect onSelect={(preset) => setState((s) => ({ ...s, preset, step: "enter-key" }))} />;
+    return (
+      <PresetSelect
+        onSelect={(preset) =>
+          setState((s) => ({ ...s, preset, step: "enter-key" }))
+        }
+        onCancel={onCancel}
+      />
+    );
   }
 
   // Determine which field to ask for next
@@ -63,6 +65,7 @@ export function AddModel({ onSubmit, onCancel }: AddModelProps) {
             setState((s) => ({ ...s, step: "enter-name" }));
           }
         }}
+        onCancel={onCancel}
       />
     );
   }
@@ -74,6 +77,7 @@ export function AddModel({ onSubmit, onCancel }: AddModelProps) {
         value={state.customBaseUrl}
         onChange={(customBaseUrl) => setState((s) => ({ ...s, customBaseUrl }))}
         onSubmit={() => setState((s) => ({ ...s, step: "enter-modelid" }))}
+        onCancel={onCancel}
       />
     );
   }
@@ -85,6 +89,7 @@ export function AddModel({ onSubmit, onCancel }: AddModelProps) {
         value={state.customModelId}
         onChange={(customModelId) => setState((s) => ({ ...s, customModelId }))}
         onSubmit={() => setState((s) => ({ ...s, step: "enter-name" }))}
+        onCancel={onCancel}
       />
     );
   }
@@ -102,10 +107,10 @@ export function AddModel({ onSubmit, onCancel }: AddModelProps) {
           if (isCustom && !state.customName.trim()) return;
 
           const model: ModelConfig = {
-            id: isCustom
-              ? toKebabCase(state.customName)
-              : preset!.id,
-            name: state.customName.trim() || (preset ? preset.name : state.customBaseUrl),
+            id: isCustom ? toKebabCase(state.customName) : preset!.id,
+            name:
+              state.customName.trim() ||
+              (preset ? preset.name : state.customBaseUrl),
             baseUrl: isCustom ? state.customBaseUrl.trim() : preset!.baseUrl,
             apiKey: state.apiKey,
             modelId: isCustom
@@ -114,6 +119,7 @@ export function AddModel({ onSubmit, onCancel }: AddModelProps) {
           };
           onSubmit(model);
         }}
+        onCancel={onCancel}
       />
     );
   }
@@ -123,11 +129,30 @@ export function AddModel({ onSubmit, onCancel }: AddModelProps) {
 
 // --- Sub-components ---
 
-function PresetSelect({ onSelect }: { onSelect: (preset: Preset) => void }) {
+function PresetSelect({
+  onSelect,
+  onCancel,
+}: {
+  onSelect: (preset: Preset) => void;
+  onCancel: () => void;
+}) {
   const [index, setIndex] = React.useState(0);
-  const options = [...PRESETS, { id: "custom" as const, name: "Custom (manual setup)", baseUrl: "", modelId: undefined, description: undefined }];
+  const options = [
+    ...PRESETS,
+    {
+      id: "custom" as const,
+      name: "Custom (manual setup)",
+      baseUrl: "",
+      modelId: undefined,
+      description: undefined,
+    },
+  ];
 
-  useInput((_, key) => {
+  useInput((input, key) => {
+    if (key.escape || input === "q") {
+      onCancel();
+      return;
+    }
     if (key.upArrow) setIndex((i) => Math.max(0, i - 1));
     if (key.downArrow) setIndex((i) => Math.min(options.length - 1, i + 1));
     if (key.return) onSelect(options[index]);
@@ -142,18 +167,20 @@ function PresetSelect({ onSelect }: { onSelect: (preset: Preset) => void }) {
       </Box>
       {options.map((opt, i) => (
         <Box key={opt.id}>
-          <Text>
-            {i === index ? "> " : "  "}
-          </Text>
-          <Text color={i === index ? "green" : undefined}>
-            {opt.name}
-          </Text>
+          <Text>{i === index ? "> " : "  "}</Text>
+          <Text color={i === index ? "green" : undefined}>{opt.name}</Text>
         </Box>
       ))}
       <Box marginTop={1}>
         <Text color="dim">
-          <Text color="green" bold>Enter</Text>: Select  {" "}
-          <Text color="green" bold>q</Text>: Cancel
+          <Text color="green" bold>
+            Enter
+          </Text>
+          : Select{" "}
+          <Text color="green" bold>
+            q
+          </Text>
+          : Cancel
         </Text>
       </Box>
     </Box>
@@ -165,26 +192,31 @@ function FieldInput({
   value,
   onChange,
   onSubmit,
+  onCancel,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   onSubmit: () => void;
+  onCancel: () => void;
 }) {
+  // Handle escape BEFORE TextInput's useInput can process it
+  useInput((_, key) => {
+    if (key.escape) {
+      onCancel();
+    }
+  });
+
   return (
     <Box flexDirection="column" paddingX={1}>
       <Text bold>{label}</Text>
       <Text>{"─".repeat(40)}</Text>
       <Box marginTop={1}>
         <Text color="green">{"> "}</Text>
-        <TextInput
-          value={value}
-          onChange={onChange}
-          onSubmit={onSubmit}
-        />
+        <TextInput value={value} onChange={onChange} onSubmit={onSubmit} focus={false} />
       </Box>
       <Box marginTop={1}>
-        <Text color="dim">Press Enter to continue</Text>
+        <Text color="dim">Press Enter to continue, Esc to cancel</Text>
       </Box>
     </Box>
   );

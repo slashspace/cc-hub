@@ -20,8 +20,9 @@ export function EditModel({ model, onSave, onCancel }: EditModelProps) {
   const [apiKey, setApiKey] = React.useState(model.apiKey);
   const [modelId, setModelId] = React.useState(model.modelId || "");
 
-  useInput((input) => {
-    if (input === "q" || input === "escape") {
+  // Handle escape BEFORE TextInput's useInput can process it
+  useInput((_, key) => {
+    if (key.escape) {
       onCancel();
     }
   });
@@ -47,14 +48,16 @@ export function EditModel({ model, onSave, onCancel }: EditModelProps) {
 
       {fields.map((f) => (
         <Box key={f.key}>
-          <Text>
-            {f.key === field ? "> " : "  "}
-          </Text>
+          <Text>{f.key === field ? "> " : "  "}</Text>
           <Text color="dim">{f.label.padEnd(16)}</Text>
           {f.key === field ? (
-            <Text color="green">{maskIf(f.key === "apiKey", valueMap[f.key])}</Text>
+            <Text color="green">
+              {maskIf(f.key === "apiKey", valueMap[f.key])}
+            </Text>
           ) : (
-            <Text color="dim">{maskIf(f.key === "apiKey", valueMap[f.key])}</Text>
+            <Text color="dim">
+              {maskIf(f.key === "apiKey", valueMap[f.key])}
+            </Text>
           )}
         </Box>
       ))}
@@ -76,8 +79,9 @@ export function EditModel({ model, onSave, onCancel }: EditModelProps) {
               setField("done");
             }
           }}
+          focus={false}
         />
-        <Text color="dim">Press Enter for next field</Text>
+        <Text color="dim">Press Enter for next field, Esc to cancel</Text>
       </Box>
     </Box>
   );
