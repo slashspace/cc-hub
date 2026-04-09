@@ -1,8 +1,9 @@
 // src/tui/dashboard.tsx
 
-import React from "react";
 import { Box, Text } from "ink";
-import { ConfigStore, Provider } from "../types.js";
+import { ConfigStore } from "../types.js";
+import { Table } from "../components/ui/table.js";
+import { StatusBar } from "../components/ui/status-bar.js";
 
 interface DashboardProps {
   store: ConfigStore;
@@ -10,119 +11,91 @@ interface DashboardProps {
   onSelect: (modelId: string) => void;
   onDelete: (providerId: string, modelId: string) => void;
   onScenario: () => void;
-  onNavigate: (direction: "up" | "down") => void;
 }
 
-type Row =
-  | { type: "header"; provider: Provider }
-  | { type: "model"; provider: Provider; modelId: string };
+type TableRow = {
+  providerName: string;
+  modelId: string;
+  active: boolean;
+  isSelected: boolean;
+};
 
-function flattenStore(store: ConfigStore): Row[] {
-  const items: Row[] = [];
+export function Dashboard({ store, selectedIndex }: DashboardProps) {
+  const rows: TableRow[] = [];
   for (const p of store.providers) {
-    items.push({ type: "header", provider: p });
     for (const m of p.models) {
-      items.push({ type: "model", provider: p, modelId: m });
+      rows.push({
+        providerName: p.name,
+        modelId: m,
+        active: m === store.activeModelId,
+        isSelected: rows.length === selectedIndex,
+      });
     }
   }
-  return items;
-}
-
-export function Dashboard({
-  store,
-  selectedIndex,
-  onSelect,
-  onDelete,
-  onScenario,
-  onNavigate,
-}: DashboardProps) {
-  const items = flattenStore(store);
 
   return (
     <Box flexDirection="column" paddingX={1}>
-      {/* Header */}
+      {/* Title */}
       <Text bold>CC Model Hub</Text>
-      <Text>{"─".repeat(50)}</Text>
 
-      {/* Active model info */}
-      <Box flexDirection="column" marginTop={1}>
-        {store.activeModelId ? (
-          <Text color="dim">
-            Active: <Text color="green" bold>{store.activeModelId}</Text>
-          </Text>
-        ) : (
-          <Text color="yellow">No active model selected</Text>
-        )}
+      {/* Subtitle */}
+      <Box marginTop={1}>
+        <Text color="dim">
+          Select a model to switch your active Claude Code configuration.
+        </Text>
       </Box>
 
-      {/* Model list grouped by provider */}
+      {/* Model table */}
       <Box flexDirection="column" marginTop={1}>
-        <Text bold>MODELS</Text>
-        <Text>{"─".repeat(50)}</Text>
-
-        {items.length === 0 ? (
+        {rows.length === 0 ? (
           <Box flexDirection="column" marginTop={1}>
             <Text color="dim">No providers configured.</Text>
             <Text color="dim">
-              Edit{" "}
-              <Text color="cyan">~/.cc-model-hub/config.json</Text>{" "}
-              to add providers, then restart.
+              Edit <Text color="cyan">~/.cc-model-hub/config.json</Text> to add
+              providers, then restart.
             </Text>
           </Box>
         ) : (
-          items.map((item, index) => {
-            if (item.type === "header") {
-              return (
-                <Box
-                  key={`h-${item.provider.id}`}
-                  marginTop={index > 0 ? 1 : 0}
-                >
-                  <Text color="cyan" bold>
-                    ── {item.provider.name} ──
-                  </Text>
-                </Box>
-              );
-            }
-            const isActive = item.modelId === store.activeModelId;
-            const isSelected = index === selectedIndex;
-            return (
-              <Box key={item.modelId}>
-                <Text>{isSelected ? "> " : "  "}</Text>
-                <Text color={isActive ? "green" : "dim"}>
-                  {isActive ? "●" : "○"}
-                </Text>
-                <Text> {item.modelId}</Text>
-                {isSelected && <Text color="yellow"> ←</Text>}
-              </Box>
-            );
-          })
+          <Table
+            columns={[
+              { header: "Provider", minWidth: 10 },
+              { header: "Model", minWidth: 24 },
+              { header: "Active", width: 8 },
+            ]}
+            rows={rows.map((row) => [
+              {
+                text: row.isSelected
+                  ? `► ${row.providerName}`
+                  : row.providerName,
+                color: row.isSelected ? "green" : undefined,
+                bold: row.isSelected,
+              },
+              {
+                text: row.modelId,
+                color: row.isSelected ? "green" : undefined,
+                bold: row.isSelected,
+              },
+              {
+                text: row.active ? "●" : "",
+                color: row.active ? "green" : undefined,
+                bold: row.active,
+              },
+            ])}
+          />
         )}
       </Box>
 
-      {/* Help bar */}
+      {/* Status Bar */}
       <Box marginTop={1}>
-        <Text color="dim">
-          <Text color="green" bold>
-            Enter
-          </Text>
-          : Switch{" "}
-          <Text color="green" bold>
-            ↑↓
-          </Text>
-          : Navigate{" "}
-          <Text color="green" bold>
-            d
-          </Text>
-          : Delete{" "}
-          <Text color="green" bold>
-            s
-          </Text>
-          : Scenarios{" "}
-          <Text color="green" bold>
-            q
-          </Text>
-          : Quit
-        </Text>
+        <StatusBar
+          items={[
+            { key: "Enter", label: "Switch" },
+            { key: "↑↓", label: "Navigate" },
+            { key: "d", label: "Delete" },
+            { key: "s", label: "Scenarios" },
+            { key: "q", label: "Quit" },
+          ]}
+        />
       </Box>
     </Box>
   );

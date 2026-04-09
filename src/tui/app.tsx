@@ -16,7 +16,7 @@ import {
 import { activateModel } from "../store/claude-config.js";
 import { Dashboard } from "./dashboard.js";
 import { ScenarioConfig } from "./scenario-config.js";
-import { Confirm } from "./confirm.js";
+import { Modal } from "../components/ui/modal.js";
 
 type Screen =
   | { type: "dashboard" }
@@ -43,29 +43,17 @@ export function App() {
     clearConfigError();
   }, []);
 
-  // Flatten rows for navigation
-  function getFlatRows() {
-    return store.providers.flatMap((p) => [
-      { type: "header" as const, providerId: p.id },
-      ...p.models.map((m) => ({ type: "model" as const, modelId: m })),
-    ]);
-  }
-
-  // Clamp selection to a valid model row
-  function clampToModel(idx: number): number {
-    const rows = getFlatRows();
-    if (rows.length === 0) return 0;
-    let i = Math.max(0, Math.min(idx, rows.length - 1));
-    while (i < rows.length && rows[i].type === "header") i++;
-    if (i >= rows.length) {
-      i = rows.length - 1;
-      while (i >= 0 && rows[i].type === "header") i--;
-    }
-    return Math.max(0, i);
+  // Model-only rows for navigation (no headers)
+  function getModelRows() {
+    return store.providers.flatMap((p) =>
+      p.models.map((m) => ({ providerId: p.id, modelId: m }))
+    );
   }
 
   React.useEffect(() => {
-    setSelectedIndex((prev) => clampToModel(prev));
+    const n = getModelRows().length;
+    if (n === 0) return;
+    setSelectedIndex((prev) => Math.max(0, Math.min(prev, n - 1)));
   }, [store.providers.length]);
 
   // --- Action handlers ---
@@ -164,34 +152,26 @@ export function App() {
           exit();
           return;
         }
-        if (key.upArrow) {
-          const rows = getFlatRows();
-          let next = selectedIndex - 1;
-          while (next >= 0 && rows[next]?.type === "header") next--;
-          setSelectedIndex(Math.max(0, next));
-          return;
-        }
-        if (key.downArrow) {
-          const rows = getFlatRows();
-          let next = selectedIndex + 1;
-          while (next < rows.length && rows[next]?.type === "header") next++;
-          setSelectedIndex(Math.min(rows.length - 1, next));
+        if (key.upArrow || key.downArrow) {
+          const models = getModelRows();
+          if (models.length === 0) return;
+          const nextPos = key.upArrow
+            ? (selectedIndex - 1 + models.length) % models.length
+            : (selectedIndex + 1) % models.length;
+          setSelectedIndex(nextPos);
           return;
         }
         if (key.return) {
-          const rows = getFlatRows();
-          const row = rows[selectedIndex];
-          if (row?.type === "model") handleSelect(row.modelId);
+          const models = getModelRows();
+          const row = models[selectedIndex];
+          if (row) handleSelect(row.modelId);
           return;
         }
         if (input === "d") {
-          const rows = getFlatRows();
-          const row = rows[selectedIndex];
-          if (row?.type === "model") {
-            const provider = store.providers.find((p) =>
-              p.models.includes(row.modelId),
-            );
-            if (provider) handleDelete(provider.id, row.modelId);
+          const models = getModelRows();
+          const row = models[selectedIndex];
+          if (row) {
+            handleDelete(row.providerId, row.modelId);
           }
           return;
         }
@@ -199,10 +179,7 @@ export function App() {
       }
 
       case "scenario": {
-        if (input === "escape") {
-          setScreen({ type: "dashboard" });
-          return;
-        }
+        // ScenarioConfig handles its own keyboard input (↑↓←→Enter Esc)
         return;
       }
 
@@ -237,19 +214,6 @@ export function App() {
           onSelect={handleSelect}
           onDelete={handleDelete}
           onScenario={() => setScreen({ type: "scenario" })}
-          onNavigate={(dir) => {
-            const rows = getFlatRows();
-            if (dir === "up") {
-              let next = selectedIndex - 1;
-              while (next >= 0 && rows[next]?.type === "header") next--;
-              setSelectedIndex(Math.max(0, next));
-            } else {
-              let next = selectedIndex + 1;
-              while (next < rows.length && rows[next]?.type === "header")
-                next++;
-              setSelectedIndex(Math.min(rows.length - 1, next));
-            }
-          }}
         />
       )}
 
@@ -262,11 +226,30 @@ export function App() {
       )}
 
       {screen.type === "confirm" && (
-        <Confirm
-          message={screen.message}
-          onConfirm={screen.onConfirm}
-          onCancel={handleConfirmCancel}
-        />
+        <Modal
+          title="Confirm"
+          borderColor="yellow"
+          borderStyle="round"
+          onClose={() => setScreen({ type: "dashboard" })}
+        >
+          <Box paddingX={2} paddingY={1} flexDirection="column">
+            <Text>{screen.message}</Text>
+            <Box marginTop={1} gap={2}>
+              <Text>
+                <Text inverse bold> Y </Text>
+                <Text dimColor> Yes</Text>
+              </Text>
+              <Text>
+                <Text inverse bold> N </Text>
+                <Text dimColor> No</Text>
+              </Text>
+              <Text>
+                <Text inverse bold> Esc </Text>
+                <Text dimColor> Cancel</Text>
+              </Text>
+            </Box>
+          </Box>
+        </Modal>
       )}
     </Box>
   );

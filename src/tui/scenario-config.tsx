@@ -4,6 +4,8 @@ import React from "react";
 import { Box, Text, useInput } from "ink";
 import { ConfigStore, ScenarioModels } from "../types.js";
 import { getAllModels } from "../store/config-store.js";
+import { Table } from "../components/ui/table.js";
+import { StatusBar } from "../components/ui/status-bar.js";
 
 interface ScenarioConfigProps {
   store: ConfigStore;
@@ -37,7 +39,7 @@ export function ScenarioConfig({ store, onSave, onCancel }: ScenarioConfigProps)
   });
 
   useInput((input, key) => {
-    if (key.escape || input === "q") {
+    if (key.escape) {
       onCancel();
       return;
     }
@@ -64,38 +66,55 @@ export function ScenarioConfig({ store, onSave, onCancel }: ScenarioConfigProps)
     }
   });
 
-  function displayModel(modelId: string | undefined): string {
-    return modelId || "(none)";
-  }
-
   return (
     <Box flexDirection="column" paddingX={1}>
-      <Text bold>Scenario Model Mappings</Text>
-      <Text>{"─".repeat(50)}</Text>
+      {/* Title */}
+      <Text bold>Scenario Mappings</Text>
+
+      {/* Subtitle */}
       <Box marginTop={1}>
         <Text color="dim">
-          Map Claude Code aliases to your models.
+          Map Claude Code's sonnet/opus/haiku/subagent aliases to your models.
         </Text>
       </Box>
-      <Box marginTop={1} flexDirection="column">
-        {FIELDS.map((f, i) => (
-          <Box key={f.key}>
-            <Text>{i === index ? "> " : "  "}</Text>
-            <Text color="dim">{f.label.padEnd(10)}</Text>
-            <Text color={i === index ? "green" : undefined}>
-              {displayModel(values[f.key])}
-            </Text>
-            <Text color="dim">  [{f.envVar}]</Text>
-          </Box>
-        ))}
+
+      {/* Scenario table */}
+      <Box flexDirection="column" marginTop={1}>
+        <Table
+          columns={[
+            { header: "Role", minWidth: 10 },
+            { header: "Model", minWidth: 24 },
+            { header: "Env Var", minWidth: 20 },
+          ]}
+          rows={FIELDS.map((f, i) => [
+            {
+              text: f.label,
+              color: i === index ? "green" : undefined,
+              bold: i === index,
+            },
+            {
+              text: values[f.key] || "(none)",
+              color: i === index ? "green" : "dim",
+              bold: i === index,
+            },
+            {
+              text: f.envVar,
+              color: "dim",
+            },
+          ])}
+        />
       </Box>
+
+      {/* Status Bar */}
       <Box marginTop={1}>
-        <Text color="dim">
-          <Text color="green" bold>Enter</Text>: Save{" "}
-          <Text color="green" bold>↑↓</Text>: Switch field{" "}
-          <Text color="green" bold>←→</Text>: Switch model{" "}
-          <Text color="green" bold>Esc</Text>: Cancel
-        </Text>
+        <StatusBar
+          items={[
+            { key: "Enter", label: "Save" },
+            { key: "↑↓", label: "Switch role" },
+            { key: "←→", label: "Switch model" },
+            { key: "Esc", label: "Cancel" },
+          ]}
+        />
       </Box>
     </Box>
   );
