@@ -10,7 +10,7 @@ import {
 import { join } from "path";
 import { homedir } from "os";
 import JSON5 from "json5";
-import { ConfigStore, Provider, Model, ScenarioModels } from "../types.js";
+import { ConfigStore, Provider, ScenarioModels } from "../types.js";
 
 const CONFIG_DIR = join(homedir(), ".cc-model-hub");
 const CONFIG_PATH = join(CONFIG_DIR, "config.json");
@@ -41,12 +41,12 @@ const EXAMPLE_CONFIG = `{
   "providers": [
   //  {
   //    "id": "dashscope",
-  //    "name": "DashScope (通义千问)",
+  //    "name": "DashScope",
   //    "baseUrl": "https://coding.dashscope.aliyuncs.com/apps/anthropic",
   //    "apiKey": "sk-your-api-key",
   //    "models": [
-  //      { "id": "qwen-plus", "name": "Qwen 3.6 Plus", "modelId": "qwen3.6-plus" },
-  //      { "id": "qwen-max", "name": "Qwen Max", "modelId": "qwen-max" }
+  //      "qwen3.6-plus",
+  //      "qwen-max"
   //    ]
   // }
   ],
@@ -119,15 +119,14 @@ export function saveConfig(store: ConfigStore): void {
 export function findModel(
   store: { providers: Provider[] },
   modelId: string,
-): { provider: Provider; model: Model } | undefined {
+): { provider: Provider; modelId: string } | undefined {
   for (const p of store.providers) {
-    const m = p.models.find((mm) => mm.id === modelId);
-    if (m) return { provider: p, model: m };
+    if (p.models.includes(modelId)) return { provider: p, modelId };
   }
   return undefined;
 }
 
-export function getAllModels(store: ConfigStore): Model[] {
+export function getAllModels(store: ConfigStore): string[] {
   return store.providers.flatMap((p) => p.models);
 }
 
@@ -170,7 +169,7 @@ export function removeModelFromProvider(
     ...store,
     providers: store.providers.map((p) =>
       p.id === providerId
-        ? { ...p, models: p.models.filter((m) => m.id !== modelId) }
+        ? { ...p, models: p.models.filter((m) => m !== modelId) }
         : p,
     ),
     activeModelId: wasActive ? null : store.activeModelId,

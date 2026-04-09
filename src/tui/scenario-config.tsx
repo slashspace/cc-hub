@@ -51,10 +51,10 @@ export function ScenarioConfig({ store, onSave, onCancel }: ScenarioConfigProps)
     }
     if (key.leftArrow || key.rightArrow) {
       const field = FIELDS[index].key;
-      const currentIdx = allModels.findIndex((m) => m.id === values[field]);
+      const currentIdx = allModels.findIndex((m) => m === values[field]);
       const dir = key.leftArrow ? -1 : 1;
       const nextIdx = (currentIdx + dir + allModels.length + 1) % (allModels.length + 1);
-      const nextValue = nextIdx === allModels.length ? undefined : allModels[nextIdx].id;
+      const nextValue = nextIdx === allModels.length ? undefined : allModels[nextIdx];
       setValues((v) => ({ ...v, [field]: nextValue }));
       return;
     }
@@ -64,10 +64,8 @@ export function ScenarioConfig({ store, onSave, onCancel }: ScenarioConfigProps)
     }
   });
 
-  function resolveModelName(modelId: string | undefined): string {
-    if (!modelId) return "(none)";
-    const m = allModels.find((mm) => mm.id === modelId);
-    return m ? `${m.name} (${m.id})` : modelId;
+  function displayModel(modelId: string | undefined): string {
+    return modelId || "(none)";
   }
 
   return (
@@ -85,7 +83,7 @@ export function ScenarioConfig({ store, onSave, onCancel }: ScenarioConfigProps)
             <Text>{i === index ? "> " : "  "}</Text>
             <Text color="dim">{f.label.padEnd(10)}</Text>
             <Text color={i === index ? "green" : undefined}>
-              {resolveModelName(values[f.key])}
+              {displayModel(values[f.key])}
             </Text>
             <Text color="dim">  [{f.envVar}]</Text>
           </Box>

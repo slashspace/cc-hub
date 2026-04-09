@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Box, Text } from "ink";
-import { ConfigStore, Provider, Model } from "../types.js";
+import { ConfigStore, Provider } from "../types.js";
 
 interface DashboardProps {
   store: ConfigStore;
@@ -15,14 +15,14 @@ interface DashboardProps {
 
 type Row =
   | { type: "header"; provider: Provider }
-  | { type: "model"; provider: Provider; model: Model };
+  | { type: "model"; provider: Provider; modelId: string };
 
 function flattenStore(store: ConfigStore): Row[] {
   const items: Row[] = [];
   for (const p of store.providers) {
     items.push({ type: "header", provider: p });
     for (const m of p.models) {
-      items.push({ type: "model", provider: p, model: m });
+      items.push({ type: "model", provider: p, modelId: m });
     }
   }
   return items;
@@ -38,14 +38,6 @@ export function Dashboard({
 }: DashboardProps) {
   const items = flattenStore(store);
 
-  const activeProvider = store.activeProviderId
-    ? store.providers.find((p) => p.id === store.activeProviderId)
-    : null;
-  const activeModel =
-    activeProvider && store.activeModelId
-      ? activeProvider.models.find((m) => m.id === store.activeModelId)
-      : null;
-
   return (
     <Box flexDirection="column" paddingX={1}>
       {/* Header */}
@@ -54,20 +46,10 @@ export function Dashboard({
 
       {/* Active model info */}
       <Box flexDirection="column" marginTop={1}>
-        {activeModel && activeProvider ? (
-          <>
-            <Text>
-              Active:{" "}
-              <Text color="green" bold>
-                {activeModel.name}
-              </Text>{" "}
-              ({activeModel.id})
-            </Text>
-            <Text color="dim">
-              Provider: {activeProvider.name} · Endpoint:{" "}
-              {truncateUrl(activeProvider.baseUrl)}
-            </Text>
-          </>
+        {store.activeModelId ? (
+          <Text color="dim">
+            Active: <Text color="green" bold>{store.activeModelId}</Text>
+          </Text>
         ) : (
           <Text color="yellow">No active model selected</Text>
         )}
@@ -101,16 +83,15 @@ export function Dashboard({
                 </Box>
               );
             }
-            const isActive = item.model.id === store.activeModelId;
+            const isActive = item.modelId === store.activeModelId;
             const isSelected = index === selectedIndex;
             return (
-              <Box key={item.model.id}>
+              <Box key={item.modelId}>
                 <Text>{isSelected ? "> " : "  "}</Text>
                 <Text color={isActive ? "green" : "dim"}>
                   {isActive ? "●" : "○"}
                 </Text>
-                <Text> {item.model.id.padEnd(20)}</Text>
-                <Text color="dim">{item.model.name}</Text>
+                <Text> {item.modelId}</Text>
                 {isSelected && <Text color="yellow"> ←</Text>}
               </Box>
             );
@@ -145,13 +126,4 @@ export function Dashboard({
       </Box>
     </Box>
   );
-}
-
-function truncateUrl(url: string): string {
-  try {
-    const u = new URL(url);
-    return u.hostname + u.pathname;
-  } catch {
-    return url.length > 40 ? url.slice(0, 37) + "..." : url;
-  }
 }

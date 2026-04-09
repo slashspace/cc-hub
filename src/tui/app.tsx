@@ -47,7 +47,7 @@ export function App() {
   function getFlatRows() {
     return store.providers.flatMap((p) => [
       { type: "header" as const, providerId: p.id },
-      ...p.models.map((m) => ({ type: "model" as const, modelId: m.id })),
+      ...p.models.map((m) => ({ type: "model" as const, modelId: m })),
     ]);
   }
 
@@ -85,7 +85,7 @@ export function App() {
       const resolved = findModel(withScenarios, modelId);
       if (resolved) {
         activateModel(withScenarios, modelId, withScenarios.scenarioModels);
-        setStatusMessage(`已切换至 ${resolved.model.name}`);
+        setStatusMessage(`Switched to ${resolved.modelId}`);
       }
     },
     [store],
@@ -94,11 +94,10 @@ export function App() {
   const handleDelete = React.useCallback(
     (providerId: string, modelId: string) => {
       const provider = store.providers.find((p) => p.id === providerId);
-      const model = provider?.models.find((m) => m.id === modelId);
-      if (!provider || !model) return;
+      if (!provider || !provider.models.includes(modelId)) return;
       setScreen({
         type: "confirm",
-        message: `Delete model "${model.name}" (${model.id})?`,
+        message: `Delete model "${modelId}"?`,
         onConfirm: () => {
           const updated = removeModelFromProvider(store, providerId, modelId);
           // Remove provider if empty
@@ -113,7 +112,7 @@ export function App() {
           setStore(updated);
           saveConfig(updated);
           setScreen({ type: "dashboard" });
-          setStatusMessage(`已删除 ${model.name}`);
+          setStatusMessage(`Deleted ${modelId}`);
         },
       });
     },
@@ -190,7 +189,7 @@ export function App() {
           const row = rows[selectedIndex];
           if (row?.type === "model") {
             const provider = store.providers.find((p) =>
-              p.models.some((m) => m.id === row.modelId),
+              p.models.includes(row.modelId),
             );
             if (provider) handleDelete(provider.id, row.modelId);
           }

@@ -26,7 +26,7 @@ export function activateModel(
   const resolved = findModel(store, modelId);
   if (!resolved) return;
 
-  const { provider, model } = resolved;
+  const { provider, modelId: resolvedModelId } = resolved;
 
   let settings: ClaudeSettings = {};
   if (existsSync(CLAUDE_SETTINGS)) {
@@ -57,7 +57,7 @@ export function activateModel(
   }
 
   env.ANTHROPIC_BASE_URL = provider.baseUrl;
-  env.ANTHROPIC_MODEL = model.modelId;
+  env.ANTHROPIC_MODEL = resolvedModelId;
 
   // Set scenario model IDs: use configured mapping, or fall back to current model
   const scenarioEntries: [keyof ScenarioModels, string][] = [
@@ -71,10 +71,10 @@ export function activateModel(
     const configuredModelId = scenarioModels[scenarioKey];
     if (configuredModelId) {
       const r = findModel(store, configuredModelId);
-      if (r) env[envVar] = r.model.modelId;
+      if (r) env[envVar] = r.modelId;
     } else {
       // Not configured — default to current model
-      env[envVar] = model.modelId;
+      env[envVar] = resolvedModelId;
     }
   }
 
