@@ -221,21 +221,25 @@ export function App() {
       )}
 
       {screen.type === "dashboard" && (
-        <Dashboard
-          store={store}
-          selectedIndex={selectedIndex}
-          onSelect={handleSelect}
-          onDelete={handleDelete}
-          onScenario={() => setScreen({ type: "scenario" })}
-        />
+        <Box minHeight={20}>
+          <Dashboard
+            store={store}
+            selectedIndex={selectedIndex}
+            onSelect={handleSelect}
+            onDelete={handleDelete}
+            onScenario={() => setScreen({ type: "scenario" })}
+          />
+        </Box>
       )}
 
       {screen.type === "scenario" && (
-        <ScenarioConfig
-          store={store}
-          onSave={handleScenarioSave}
-          onCancel={handleScenarioCancel}
-        />
+        <Box minHeight={20}>
+          <ScenarioConfig
+            store={store}
+            onSave={handleScenarioSave}
+            onCancel={handleScenarioCancel}
+          />
+        </Box>
       )}
 
       {screen.type === "confirm" && (

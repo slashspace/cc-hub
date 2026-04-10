@@ -36,12 +36,26 @@ export function Dashboard({ store, selectedIndex }: DashboardProps) {
   return (
     <Box flexDirection="column" paddingX={1}>
       {/* Title */}
-      <Text bold>cc-hub</Text>
+      <Text color="cyan">
+        {`                   __          __  `}
+      </Text>
+      <Text color="cyan">
+        {`  __________      / /_  __  __/ /_ `}
+      </Text>
+      <Text color="cyan">
+        {` / ___/ ___/_____/ __ \\/ / / / __ \\`}
+      </Text>
+      <Text color="cyan">
+        {`/ /__/ /__/_____/ / / / /_/ / /_/ /`}
+      </Text>
+      <Text color="cyan">
+        {`\\___/\\___/     /_/ /_/\\__,_/_.__/ `}
+      </Text>
 
       {/* Subtitle */}
       <Box marginTop={1}>
         <Text color="dim">
-          Select a model to switch your active Claude Code configuration.
+          Edit <Text color="cyan">~/.cc-hub/config.json</Text> to add providers.
         </Text>
       </Box>
 
