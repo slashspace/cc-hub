@@ -10,6 +10,10 @@ A terminal TUI tool for managing Claude Code model configurations. Switch betwee
 - Atomic config writes to prevent corruption
 - JSON5 config file with comment support
 
+## Demo
+
+![cc-hub demo](demo.gif)
+
 ## Install
 
 ```bash
