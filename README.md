@@ -13,14 +13,13 @@ A terminal TUI tool for managing Claude Code model configurations. Switch betwee
 ## Install
 
 ```bash
-pnpm install
-pnpm run build
+npm install -g cc-hub
 ```
 
-For global install:
+Or run without installing:
 
 ```bash
-pnpm add -g .
+npx cc-hub
 ```
 
 ## Usage

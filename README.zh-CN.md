@@ -13,14 +13,13 @@
 ## 安装
 
 ```bash
-pnpm install
-pnpm run build
+npm install -g cc-hub
 ```
 
-全局安装：
+或者不安装直接运行：
 
 ```bash
-pnpm add -g .
+npx cc-hub
 ```
 
 ## 使用
