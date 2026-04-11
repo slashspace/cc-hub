@@ -10,7 +10,7 @@ import {
 import { join } from "path";
 import { homedir } from "os";
 import JSON5 from "json5";
-import { ConfigStore, Provider, ScenarioModels } from "../types.js";
+import { ConfigStore, Provider, ScenarioModels, Scope } from "../types.js";
 
 const CONFIG_DIR = join(homedir(), ".cc-hub");
 const CONFIG_PATH = join(CONFIG_DIR, "config.json");
@@ -20,6 +20,7 @@ const DEFAULT_STORE: ConfigStore = {
   activeProviderId: null,
   activeModelId: null,
   scenarioModels: {},
+  scope: "global",
 };
 
 function ensureConfigDir(): void {
@@ -77,6 +78,7 @@ export function loadConfig(): ConfigStore {
       activeProviderId: null,
       activeModelId: null,
       scenarioModels: parsed.scenarioModels ?? {},
+      scope: "global",
     };
   }
   const raw = readFileSync(CONFIG_PATH, "utf8");
@@ -88,6 +90,7 @@ export function loadConfig(): ConfigStore {
       activeProviderId: null,
       activeModelId: null,
       scenarioModels: parsed.scenarioModels ?? {},
+      scope: "global",
     };
   }
   try {
@@ -101,6 +104,7 @@ export function loadConfig(): ConfigStore {
       activeProviderId: parsed.activeProviderId ?? null,
       activeModelId: parsed.activeModelId ?? null,
       scenarioModels: parsed.scenarioModels ?? {},
+      scope: (parsed.scope as Scope) ?? "global",
     };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Unknown parse error";

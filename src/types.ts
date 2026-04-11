@@ -17,10 +17,14 @@ export interface ScenarioModels {
   subagentModelId?: string;
 }
 
+// Scope: where to write Claude settings
+export type Scope = "global" | "local";
+
 // Full config store
 export interface ConfigStore {
   providers: Provider[];
   activeProviderId: string | null;
   activeModelId: string | null;
   scenarioModels: ScenarioModels;
+  scope: Scope;
 }

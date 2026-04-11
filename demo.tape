@@ -29,6 +29,14 @@ Sleep 500ms
 Enter
 Sleep 1s
 
+# Toggle scope to Local
+Tab
+Sleep 1s
+
+# Toggle scope back to Global
+Tab
+Sleep 1s
+
 # Go to scenario mapping
 Type "s"
 Sleep 1s
@@ -47,6 +55,10 @@ Sleep 500ms
 
 # Save scenario
 Enter
+Sleep 1s
+
+# Return to dashboard
+Escape
 Sleep 1s
 
 # Quit

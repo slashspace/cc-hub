@@ -5,6 +5,7 @@ import { Box, Text, useInput } from "ink";
 import { ConfigStore, ScenarioModels } from "../types.js";
 import { Table } from "../components/ui/table.js";
 import { StatusBar } from "../components/ui/status-bar.js";
+import { getScenarioModels } from "../store/claude-config.js";
 
 interface ScenarioConfigProps {
   store: ConfigStore;
@@ -53,12 +54,9 @@ export function ScenarioConfig({
   );
   const allModels = activeProvider ? activeProvider.models : [];
   const [index, setIndex] = React.useState(0);
-  const [values, setValues] = React.useState<ScenarioModels>({
-    opusModelId: store.scenarioModels.opusModelId,
-    sonnetModelId: store.scenarioModels.sonnetModelId,
-    haikuModelId: store.scenarioModels.haikuModelId,
-    subagentModelId: store.scenarioModels.subagentModelId,
-  });
+  const [values, setValues] = React.useState<ScenarioModels>(() =>
+    getScenarioModels(store.scope),
+  );
 
   useInput((input, key) => {
     if (key.escape) {

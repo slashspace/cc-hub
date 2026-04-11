@@ -1,37 +1,58 @@
 // src/store/claude-config.ts
 
-import { existsSync, readFileSync, writeFileSync, renameSync } from "fs";
-import { join } from "path";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+  renameSync,
+} from "fs";
+import { join, dirname } from "path";
 import { homedir } from "os";
-import { Provider, ScenarioModels } from "../types.js";
+import { Provider, ScenarioModels, Scope } from "../types.js";
 import { findModel } from "./config-store.js";
 
-const CLAUDE_SETTINGS = join(homedir(), ".claude", "settings.json");
+function resolveSettingsPath(scope: Scope, cwd?: string): string {
+  if (scope === "local") {
+    return join(cwd ?? process.cwd(), ".claude", "settings.local.json");
+  }
+  return join(homedir(), ".claude", "settings.json");
+}
 
 interface ClaudeSettings {
   env?: Record<string, string>;
   [key: string]: unknown;
 }
 
+interface ActivateOptions {
+  scope?: Scope;
+  cwd?: string;
+}
+
 export function activateModel(
   store: { providers: Provider[] },
   modelId: string,
   scenarioModels: ScenarioModels,
+  options?: ActivateOptions,
 ): void {
-  const dir = join(homedir(), ".claude");
-  if (!existsSync(dir)) {
-    return;
-  }
+  const scope = options?.scope ?? "global";
+  const targetPath = resolveSettingsPath(scope, options?.cwd);
 
   const resolved = findModel(store, modelId);
   if (!resolved) return;
 
   const { provider, modelId: resolvedModelId } = resolved;
 
+  // Ensure target directory exists
+  const targetDir = dirname(targetPath);
+  if (!existsSync(targetDir)) {
+    mkdirSync(targetDir, { recursive: true });
+  }
+
   let settings: ClaudeSettings = {};
-  if (existsSync(CLAUDE_SETTINGS)) {
+  if (existsSync(targetPath)) {
     try {
-      settings = JSON.parse(readFileSync(CLAUDE_SETTINGS, "utf8"));
+      settings = JSON.parse(readFileSync(targetPath, "utf8"));
     } catch {
       settings = {};
     }
@@ -80,19 +101,65 @@ export function activateModel(
 
   settings.env = env;
 
-  const tmpPath = CLAUDE_SETTINGS + ".tmp";
+  const tmpPath = targetPath + ".tmp";
   writeFileSync(tmpPath, JSON.stringify(settings, null, 2) + "\n", "utf8");
-  renameSync(tmpPath, CLAUDE_SETTINGS);
+  renameSync(tmpPath, targetPath);
 }
 
-export function getActiveModelName(): string | null {
-  if (!existsSync(CLAUDE_SETTINGS)) return null;
+export function getActiveModelName(
+  scope: Scope = "global",
+  cwd?: string,
+): string | null {
+  const targetPath = resolveSettingsPath(scope, cwd);
+  if (!existsSync(targetPath)) return null;
   try {
     const settings: ClaudeSettings = JSON.parse(
-      readFileSync(CLAUDE_SETTINGS, "utf8"),
+      readFileSync(targetPath, "utf8"),
     );
     return settings.env?.ANTHROPIC_BASE_URL || null;
   } catch {
     return null;
+  }
+}
+
+export function getSettingsPath(scope: Scope, cwd?: string): string {
+  return resolveSettingsPath(scope, cwd);
+}
+
+export function getActiveModelId(
+  scope: Scope = "global",
+  cwd?: string,
+): string | null {
+  const targetPath = resolveSettingsPath(scope, cwd);
+  if (!existsSync(targetPath)) return null;
+  try {
+    const settings: ClaudeSettings = JSON.parse(
+      readFileSync(targetPath, "utf8"),
+    );
+    return settings.env?.ANTHROPIC_MODEL || null;
+  } catch {
+    return null;
+  }
+}
+
+export function getScenarioModels(
+  scope: Scope = "global",
+  cwd?: string,
+): ScenarioModels {
+  const targetPath = resolveSettingsPath(scope, cwd);
+  if (!existsSync(targetPath)) return {};
+  try {
+    const settings: ClaudeSettings = JSON.parse(
+      readFileSync(targetPath, "utf8"),
+    );
+    const env = settings.env ?? {};
+    return {
+      opusModelId: env.ANTHROPIC_DEFAULT_OPUS_MODEL,
+      sonnetModelId: env.ANTHROPIC_DEFAULT_SONNET_MODEL,
+      haikuModelId: env.ANTHROPIC_DEFAULT_HAIKU_MODEL,
+      subagentModelId: env.CLAUDE_CODE_SUBAGENT_MODEL,
+    };
+  } catch {
+    return {};
   }
 }

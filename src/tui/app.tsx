@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useApp, useInput, Box, Text } from "ink";
-import { ScenarioModels } from "../types.js";
+import { ScenarioModels, Scope } from "../types.js";
 import {
   loadConfig,
   saveConfig,
@@ -72,7 +72,9 @@ export function App() {
       saveConfig(withScenarios);
       const resolved = findModel(withScenarios, modelId);
       if (resolved) {
-        activateModel(withScenarios, modelId, withScenarios.scenarioModels);
+        activateModel(withScenarios, modelId, withScenarios.scenarioModels, {
+          scope: withScenarios.scope,
+        });
       }
     },
     [store],
@@ -136,7 +138,9 @@ export function App() {
       saveConfig(updated);
       // Stay on scenario page, only Esc goes back to dashboard
       if (updated.activeModelId) {
-        activateModel(updated, updated.activeModelId, updated.scenarioModels);
+        activateModel(updated, updated.activeModelId, updated.scenarioModels, {
+          scope: updated.scope,
+        });
       }
     },
     [store],
@@ -157,6 +161,13 @@ export function App() {
 
     switch (screen.type) {
       case "dashboard": {
+        if (key.tab) {
+          const nextScope: Scope = store.scope === "global" ? "local" : "global";
+          const updated = { ...store, scope: nextScope };
+          setStore(updated);
+          saveConfig(updated);
+          return;
+        }
         if (input === "s") {
           setScreen({ type: "scenario" });
           return;

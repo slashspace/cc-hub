@@ -1,9 +1,12 @@
 // src/tui/dashboard.tsx
 
 import { Box, Text } from "ink";
-import { ConfigStore } from "../types.js";
+import { ConfigStore, Scope } from "../types.js";
 import { Table } from "../components/ui/table.js";
 import { StatusBar } from "../components/ui/status-bar.js";
+import { TabBar } from "../components/ui/tab-bar.js";
+import { getSettingsPath, getActiveModelId } from "../store/claude-config.js";
+import { homedir } from "os";
 
 interface DashboardProps {
   store: ConfigStore;
@@ -21,13 +24,16 @@ type TableRow = {
 };
 
 export function Dashboard({ store, selectedIndex }: DashboardProps) {
+  const activeModelId = getActiveModelId(store.scope);
+  const rawPath = getSettingsPath(store.scope);
+  const displayPath = rawPath.replace(homedir(), "~");
   const rows: TableRow[] = [];
   for (const p of store.providers) {
     for (const m of p.models) {
       rows.push({
         providerName: p.name,
         modelId: m,
-        active: m === store.activeModelId,
+        active: m === activeModelId,
         isSelected: rows.length === selectedIndex,
       });
     }
@@ -56,6 +62,22 @@ export function Dashboard({ store, selectedIndex }: DashboardProps) {
       <Box marginTop={1}>
         <Text color="dim">
           Edit <Text color="cyan">~/.cc-hub/config.json</Text> to add providers.
+        </Text>
+      </Box>
+
+      {/* Scope TabBar */}
+      <Box marginTop={1}>
+        <TabBar
+          label="Scope"
+          options={["Global", "Local"]}
+          selectedIndex={store.scope === "global" ? 0 : 1}
+          focused={true}
+          activeColor="cyan"
+        />
+      </Box>
+      <Box>
+        <Text color="dim">
+          Writing to: <Text color="cyan">{displayPath}</Text>
         </Text>
       </Box>
 
@@ -103,6 +125,7 @@ export function Dashboard({ store, selectedIndex }: DashboardProps) {
           items={[
             { key: "Enter", label: "Switch" },
             { key: "↑↓", label: "Navigate" },
+            { key: "Tab", label: "Scope" },
             { key: "d", label: "Delete" },
             { key: "s", label: "Scenarios" },
             { key: "q", label: "Quit" },
