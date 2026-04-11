@@ -5,6 +5,7 @@ A terminal TUI tool for managing Claude Code model configurations. Switch betwee
 ## Features
 
 - Switch active model with one key press
+- Toggle between global and local scope (Tab)
 - Manage multiple providers and models
 - Map Claude Code role aliases (opus/sonnet/haiku/subagent) to any model
 - Atomic config writes to prevent corruption
@@ -40,9 +41,17 @@ cc-hub
 |-----|--------|
 | `↑` `↓` | Navigate models |
 | `Enter` | Switch to selected model |
+| `Tab` | Toggle global/local scope |
 | `d` | Delete selected model |
 | `s` | Scenario alias mapping |
 | `q` | Quit |
+
+### Scope
+
+Press `Tab` to toggle between **Global** and **Local** scope:
+
+- **Global** — writes to `~/.claude/settings.json` (affects all projects)
+- **Local** — writes to `.claude/settings.local.json` in the current project directory (project-specific)
 
 ### Scenario Mapping
 
@@ -81,7 +90,7 @@ Edit `~/.cc-hub/config.json` to add providers:
 }
 ```
 
-When you select a model, cc-hub writes the provider's credentials and model ID into `~/.claude/settings.json`. **Restart Claude Code for the change to take effect.**
+When you select a model, cc-hub writes the provider's credentials and model ID into Claude's settings file (global or local, depending on current scope). **Restart Claude Code for the change to take effect.**
 
 ## Development
 
