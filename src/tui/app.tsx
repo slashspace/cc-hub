@@ -2,18 +2,20 @@
 
 import React from "react";
 import { useApp, useInput, Box, Text } from "ink";
-import { ScenarioModels, Scope } from "../types.js";
+import { Scope } from "../types.js";
 import {
   loadConfig,
   saveConfig,
-  setActiveModel,
   findModel,
-  updateScenarioModels,
   removeModelFromProvider,
   getConfigError,
   clearConfigError,
 } from "../store/config-store.js";
-import { activateModel } from "../store/claude-config.js";
+import {
+  activateModel,
+  detectScope,
+  saveScenarioModels,
+} from "../store/claude-config.js";
 import { Dashboard } from "./dashboard.js";
 import { ScenarioConfig } from "./scenario-config.js";
 import { Modal } from "../components/ui/modal.js";
@@ -31,6 +33,7 @@ export function App() {
     getConfigError(),
   );
   const [selectedIndex, setSelectedIndex] = React.useState(0);
+  const [scope, setScope] = React.useState<Scope>(() => detectScope());
 
   // Auto-clear status message
   React.useEffect(() => {
@@ -59,25 +62,14 @@ export function App() {
   // --- Action handlers ---
 
   const handleSelect = React.useCallback(
-    (modelId: string) => {
-      const updated = setActiveModel(store, modelId);
-      // Always sync scenarioModels to the selected model
-      const withScenarios = updateScenarioModels(updated, {
-        opusModelId: modelId,
-        sonnetModelId: modelId,
-        haikuModelId: modelId,
-        subagentModelId: modelId,
-      });
-      setStore(withScenarios);
-      saveConfig(withScenarios);
-      const resolved = findModel(withScenarios, modelId);
-      if (resolved) {
-        activateModel(withScenarios, modelId, withScenarios.scenarioModels, {
-          scope: withScenarios.scope,
-        });
+    (providerId: string, modelId: string) => {
+      const provider = store.providers.find((p) => p.id === providerId);
+      if (provider) {
+        activateModel(provider, modelId, { scope });
+        setStatusMessage(`Switched to ${modelId}`);
       }
     },
-    [store],
+    [store, scope],
   );
 
   const handleDelete = React.useCallback(
@@ -88,31 +80,7 @@ export function App() {
         type: "confirm",
         message: `Delete model "${modelId}"?`,
         onConfirm: () => {
-          let updated = removeModelFromProvider(store, providerId, modelId);
-          // Clean up scenarioModels references to the deleted model
-          const sm = updated.scenarioModels;
-          if (
-            sm.opusModelId === modelId ||
-            sm.sonnetModelId === modelId ||
-            sm.haikuModelId === modelId ||
-            sm.subagentModelId === modelId
-          ) {
-            updated = {
-              ...updated,
-              scenarioModels: {
-                opusModelId:
-                  sm.opusModelId === modelId ? undefined : sm.opusModelId,
-                sonnetModelId:
-                  sm.sonnetModelId === modelId ? undefined : sm.sonnetModelId,
-                haikuModelId:
-                  sm.haikuModelId === modelId ? undefined : sm.haikuModelId,
-                subagentModelId:
-                  sm.subagentModelId === modelId
-                    ? undefined
-                    : sm.subagentModelId,
-              },
-            };
-          }
+          const updated = removeModelFromProvider(store, providerId, modelId);
           setStore(updated);
           saveConfig(updated);
           setScreen({ type: "dashboard" });
@@ -129,21 +97,11 @@ export function App() {
   );
 
   const handleScenarioSave = React.useCallback(
-    (updates: ScenarioModels) => {
-      const updated = {
-        ...store,
-        scenarioModels: updates,
-      };
-      setStore(updated);
-      saveConfig(updated);
-      // Stay on scenario page, only Esc goes back to dashboard
-      if (updated.activeModelId) {
-        activateModel(updated, updated.activeModelId, updated.scenarioModels, {
-          scope: updated.scope,
-        });
-      }
+    (scenarioModels: { opusModelId?: string; sonnetModelId?: string; haikuModelId?: string; subagentModelId?: string }) => {
+      saveScenarioModels(scenarioModels, scope);
+      setStatusMessage("Scenario mappings saved");
     },
-    [store],
+    [scope],
   );
 
   const handleScenarioCancel = React.useCallback(
@@ -162,10 +120,8 @@ export function App() {
     switch (screen.type) {
       case "dashboard": {
         if (key.tab) {
-          const nextScope: Scope = store.scope === "global" ? "local" : "global";
-          const updated = { ...store, scope: nextScope };
-          setStore(updated);
-          saveConfig(updated);
+          const nextScope: Scope = scope === "global" ? "local" : "global";
+          setScope(nextScope);
           return;
         }
         if (input === "s") {
@@ -188,7 +144,7 @@ export function App() {
         if (key.return) {
           const models = getModelRows();
           const row = models[selectedIndex];
-          if (row) handleSelect(row.modelId);
+          if (row) handleSelect(row.providerId, row.modelId);
           return;
         }
         if (input === "d") {
@@ -236,6 +192,7 @@ export function App() {
           <Dashboard
             store={store}
             selectedIndex={selectedIndex}
+            scope={scope}
             onSelect={handleSelect}
             onDelete={handleDelete}
             onScenario={() => setScreen({ type: "scenario" })}
@@ -247,6 +204,7 @@ export function App() {
         <Box minHeight={20}>
           <ScenarioConfig
             store={store}
+            scope={scope}
             onSave={handleScenarioSave}
             onCancel={handleScenarioCancel}
           />

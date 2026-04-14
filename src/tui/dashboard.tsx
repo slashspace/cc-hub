@@ -1,17 +1,18 @@
 // src/tui/dashboard.tsx
 
 import { Box, Text } from "ink";
-import { ConfigStore, Scope } from "../types.js";
+import { ConfigStore } from "../types.js";
 import { Table } from "../components/ui/table.js";
 import { StatusBar } from "../components/ui/status-bar.js";
 import { TabBar } from "../components/ui/tab-bar.js";
-import { getSettingsPath, getActiveModelId } from "../store/claude-config.js";
+import { getSettingsPath, getActiveProviderAndModel } from "../store/claude-config.js";
 import { homedir } from "os";
 
 interface DashboardProps {
   store: ConfigStore;
   selectedIndex: number;
-  onSelect: (modelId: string) => void;
+  scope: "global" | "local";
+  onSelect: (providerId: string, modelId: string) => void;
   onDelete: (providerId: string, modelId: string) => void;
   onScenario: () => void;
 }
@@ -23,9 +24,13 @@ type TableRow = {
   isSelected: boolean;
 };
 
-export function Dashboard({ store, selectedIndex }: DashboardProps) {
-  const activeModelId = getActiveModelId(store.scope);
-  const rawPath = getSettingsPath(store.scope);
+export function Dashboard({ store, selectedIndex, scope }: DashboardProps) {
+  // Derive active provider/model from Claude settings.json
+  const { provider: activeProvider, modelId: activeModelId } =
+    getActiveProviderAndModel(store, scope);
+  const activeProviderId = activeProvider?.id ?? null;
+
+  const rawPath = getSettingsPath(scope);
   const displayPath = rawPath.replace(homedir(), "~");
   const rows: TableRow[] = [];
   for (const p of store.providers) {
@@ -33,7 +38,7 @@ export function Dashboard({ store, selectedIndex }: DashboardProps) {
       rows.push({
         providerName: p.name,
         modelId: m,
-        active: m === activeModelId,
+        active: m === activeModelId && p.id === activeProviderId,
         isSelected: rows.length === selectedIndex,
       });
     }
@@ -70,7 +75,7 @@ export function Dashboard({ store, selectedIndex }: DashboardProps) {
         <TabBar
           label="Scope"
           options={["Global", "Local"]}
-          selectedIndex={store.scope === "global" ? 0 : 1}
+          selectedIndex={scope === "global" ? 0 : 1}
           focused={true}
           activeColor="cyan"
         />

@@ -2,13 +2,21 @@
 
 import React from "react";
 import { Box, Text, useInput } from "ink";
-import { ConfigStore, ScenarioModels } from "../types.js";
+import { ConfigStore, Scope } from "../types.js";
 import { Table } from "../components/ui/table.js";
 import { StatusBar } from "../components/ui/status-bar.js";
-import { getScenarioModels } from "../store/claude-config.js";
+import { getScenarioModels, getActiveProviderAndModel } from "../store/claude-config.js";
+
+interface ScenarioModels {
+  opusModelId?: string;
+  sonnetModelId?: string;
+  haikuModelId?: string;
+  subagentModelId?: string;
+}
 
 interface ScenarioConfigProps {
   store: ConfigStore;
+  scope: Scope;
   onSave: (updates: ScenarioModels) => void;
   onCancel: () => void;
 }
@@ -46,16 +54,19 @@ const FIELDS: ScenarioFieldDef[] = [
 
 export function ScenarioConfig({
   store,
+  scope,
   onSave,
   onCancel,
 }: ScenarioConfigProps) {
-  const activeProvider = store.providers.find(
-    (p) => p.id === store.activeProviderId,
+  // Derive active provider from Claude settings.json
+  const { provider: activeProvider } = getActiveProviderAndModel(
+    store,
+    scope,
   );
   const allModels = activeProvider ? activeProvider.models : [];
   const [index, setIndex] = React.useState(0);
   const [values, setValues] = React.useState<ScenarioModels>(() =>
-    getScenarioModels(store.scope),
+    getScenarioModels(scope),
   );
 
   useInput((input, key) => {

@@ -85,8 +85,7 @@ cc-hub
       "apiKey": "sk-your-api-key",
       "models": ["deepseek-chat", "deepseek-reasoner"]
     }
-  ],
-  "scenarioModels": {}
+  ]
 }
 ```
 

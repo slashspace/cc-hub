@@ -9,22 +9,12 @@ export interface Provider {
   models: string[];
 }
 
-// Scenario model alias mappings
-export interface ScenarioModels {
-  opusModelId?: string;
-  sonnetModelId?: string;
-  haikuModelId?: string;
-  subagentModelId?: string;
-}
-
 // Scope: where to write Claude settings
 export type Scope = "global" | "local";
 
 // Full config store
+// Note: All active state (provider, model, scenario mappings, scope) are derived from
+// ~/.claude/settings.json or .claude/settings.local.json
 export interface ConfigStore {
   providers: Provider[];
-  activeProviderId: string | null;
-  activeModelId: string | null;
-  scenarioModels: ScenarioModels;
-  scope: Scope;
 }

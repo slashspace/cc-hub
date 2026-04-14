@@ -85,12 +85,22 @@ Edit `~/.cc-hub/config.json` to add providers:
       "apiKey": "sk-your-api-key",
       "models": ["deepseek-chat", "deepseek-reasoner"]
     }
-  ],
-  "scenarioModels": {}
+  ]
 }
 ```
 
 When you select a model, cc-hub writes the provider's credentials and model ID into Claude's settings file (global or local, depending on current scope). **Restart Claude Code for the change to take effect.**
+
+### How It Works
+
+cc-hub derives all active state from Claude's settings file (`~/.claude/settings.json` or `.claude/settings.local.json`):
+
+- **Active Provider** — matched by comparing `apiKey` with `ANTHROPIC_AUTH_TOKEN`/`ANTHROPIC_API_KEY`
+- **Active Model** — read from `ANTHROPIC_MODEL`
+- **Scenario Mappings** — read from `ANTHROPIC_DEFAULT_*_MODEL` env vars
+- **Scope** — auto-detected based on existence of local settings file
+
+This means you can manually edit Claude's settings file and cc-hub will always display the current state accurately.
 
 ## Development
 

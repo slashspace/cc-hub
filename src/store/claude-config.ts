@@ -9,8 +9,15 @@ import {
 } from "fs";
 import { join, dirname } from "path";
 import { homedir } from "os";
-import { Provider, ScenarioModels, Scope } from "../types.js";
-import { findModel } from "./config-store.js";
+import { ConfigStore, Provider, Scope } from "../types.js";
+
+// Scenario model alias mappings (stored in settings.json, not config.json)
+interface ScenarioModels {
+  opusModelId?: string;
+  sonnetModelId?: string;
+  haikuModelId?: string;
+  subagentModelId?: string;
+}
 
 function resolveSettingsPath(scope: Scope, cwd?: string): string {
   if (scope === "local") {
@@ -29,19 +36,22 @@ interface ActivateOptions {
   cwd?: string;
 }
 
+/**
+ * Detect scope based on existence of local settings file.
+ * If .claude/settings.local.json exists in cwd, use "local", otherwise "global".
+ */
+export function detectScope(cwd?: string): Scope {
+  const localPath = join(cwd ?? process.cwd(), ".claude", "settings.local.json");
+  return existsSync(localPath) ? "local" : "global";
+}
+
 export function activateModel(
-  store: { providers: Provider[] },
+  provider: Provider,
   modelId: string,
-  scenarioModels: ScenarioModels,
   options?: ActivateOptions,
 ): void {
-  const scope = options?.scope ?? "global";
+  const scope = options?.scope ?? detectScope(options?.cwd);
   const targetPath = resolveSettingsPath(scope, options?.cwd);
-
-  const resolved = findModel(store, modelId);
-  if (!resolved) return;
-
-  const { provider, modelId: resolvedModelId } = resolved;
 
   // Ensure target directory exists
   const targetDir = dirname(targetPath);
@@ -78,26 +88,13 @@ export function activateModel(
   }
 
   env.ANTHROPIC_BASE_URL = provider.baseUrl;
-  env.ANTHROPIC_MODEL = resolvedModelId;
+  env.ANTHROPIC_MODEL = modelId;
 
-  // Set scenario model IDs: use configured mapping, or fall back to current model
-  const scenarioEntries: [keyof ScenarioModels, string][] = [
-    ["opusModelId", "ANTHROPIC_DEFAULT_OPUS_MODEL"],
-    ["sonnetModelId", "ANTHROPIC_DEFAULT_SONNET_MODEL"],
-    ["haikuModelId", "ANTHROPIC_DEFAULT_HAIKU_MODEL"],
-    ["subagentModelId", "CLAUDE_CODE_SUBAGENT_MODEL"],
-  ];
-
-  for (const [scenarioKey, envVar] of scenarioEntries) {
-    const configuredModelId = scenarioModels[scenarioKey];
-    if (configuredModelId) {
-      const r = findModel(store, configuredModelId);
-      if (r) env[envVar] = r.modelId;
-    } else {
-      // Not configured — default to current model
-      env[envVar] = resolvedModelId;
-    }
-  }
+  // Always set scenario model IDs to current model
+  env.ANTHROPIC_DEFAULT_OPUS_MODEL = modelId;
+  env.ANTHROPIC_DEFAULT_SONNET_MODEL = modelId;
+  env.ANTHROPIC_DEFAULT_HAIKU_MODEL = modelId;
+  env.CLAUDE_CODE_SUBAGENT_MODEL = modelId;
 
   settings.env = env;
 
@@ -142,6 +139,25 @@ export function getActiveModelId(
   }
 }
 
+export function getActiveInfo(
+  scope: Scope = "global",
+  cwd?: string,
+): { modelId: string | null; baseUrl: string | null } {
+  const targetPath = resolveSettingsPath(scope, cwd);
+  if (!existsSync(targetPath)) return { modelId: null, baseUrl: null };
+  try {
+    const settings: ClaudeSettings = JSON.parse(
+      readFileSync(targetPath, "utf8"),
+    );
+    return {
+      modelId: settings.env?.ANTHROPIC_MODEL || null,
+      baseUrl: settings.env?.ANTHROPIC_BASE_URL || null,
+    };
+  } catch {
+    return { modelId: null, baseUrl: null };
+  }
+}
+
 export function getScenarioModels(
   scope: Scope = "global",
   cwd?: string,
@@ -161,5 +177,83 @@ export function getScenarioModels(
     };
   } catch {
     return {};
+  }
+}
+
+/**
+ * Get the currently active provider and model from Claude settings.
+ * Matches provider by comparing apiKey with ANTHROPIC_AUTH_TOKEN or ANTHROPIC_API_KEY.
+ */
+export function getActiveProviderAndModel(
+  store: Pick<ConfigStore, "providers">,
+  scope: Scope = "global",
+  cwd?: string,
+): { provider: Provider | null; modelId: string | null } {
+  const targetPath = resolveSettingsPath(scope, cwd);
+  if (!existsSync(targetPath)) {
+    return { provider: null, modelId: null };
+  }
+
+  try {
+    const settings: ClaudeSettings = JSON.parse(
+      readFileSync(targetPath, "utf8"),
+    );
+    const env = settings.env ?? {};
+
+    const authToken = env.ANTHROPIC_AUTH_TOKEN || env.ANTHROPIC_API_KEY;
+    const modelId = env.ANTHROPIC_MODEL || null;
+
+    if (!authToken) {
+      return { provider: null, modelId };
+    }
+
+    const provider =
+      store.providers.find((p) => p.apiKey === authToken) || null;
+    return { provider, modelId };
+  } catch {
+    return { provider: null, modelId: null };
+  }
+}
+
+/**
+ * Save scenario model mappings to settings.json
+ */
+export function saveScenarioModels(
+  updates: ScenarioModels,
+  scope: Scope = "global",
+  cwd?: string,
+): void {
+  const targetPath = resolveSettingsPath(scope, cwd);
+  if (!existsSync(targetPath)) return;
+
+  try {
+    const settings: ClaudeSettings = JSON.parse(
+      readFileSync(targetPath, "utf8"),
+    );
+    const env = settings.env ?? {};
+
+    const scenarioEntries: [keyof ScenarioModels, string][] = [
+      ["opusModelId", "ANTHROPIC_DEFAULT_OPUS_MODEL"],
+      ["sonnetModelId", "ANTHROPIC_DEFAULT_SONNET_MODEL"],
+      ["haikuModelId", "ANTHROPIC_DEFAULT_HAIKU_MODEL"],
+      ["subagentModelId", "CLAUDE_CODE_SUBAGENT_MODEL"],
+    ];
+
+    for (const [key, envVar] of scenarioEntries) {
+      const value = updates[key];
+      if (value) {
+        env[envVar] = value;
+      } else {
+        delete env[envVar];
+      }
+    }
+
+    settings.env = env;
+
+    const tmpPath = targetPath + ".tmp";
+    writeFileSync(tmpPath, JSON.stringify(settings, null, 2) + "\n", "utf8");
+    renameSync(tmpPath, targetPath);
+  } catch {
+    // Ignore write errors
   }
 }

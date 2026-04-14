@@ -10,17 +10,13 @@ import {
 import { join } from "path";
 import { homedir } from "os";
 import JSON5 from "json5";
-import { ConfigStore, Provider, ScenarioModels, Scope } from "../types.js";
+import { ConfigStore, Provider } from "../types.js";
 
 const CONFIG_DIR = join(homedir(), ".cc-hub");
 const CONFIG_PATH = join(CONFIG_DIR, "config.json");
 
 const DEFAULT_STORE: ConfigStore = {
   providers: [],
-  activeProviderId: null,
-  activeModelId: null,
-  scenarioModels: {},
-  scope: "global",
 };
 
 function ensureConfigDir(): void {
@@ -50,11 +46,7 @@ const EXAMPLE_CONFIG = `{
   //      "qwen-max"
   //    ]
   // }
-  ],
-
-  // Optional: map Claude Code aliases (sonnet/opus/haiku) to your models.
-  // These write ANTHROPIC_DEFAULT_SONNET_MODEL etc. into Claude's settings.json.
-  "scenarioModels": {}
+  ]
 }
 `;
 
@@ -75,10 +67,6 @@ export function loadConfig(): ConfigStore {
     const parsed = JSON5.parse(EXAMPLE_CONFIG) as ConfigStore;
     return {
       providers: parsed.providers ?? [],
-      activeProviderId: null,
-      activeModelId: null,
-      scenarioModels: parsed.scenarioModels ?? {},
-      scope: "global",
     };
   }
   const raw = readFileSync(CONFIG_PATH, "utf8");
@@ -87,10 +75,6 @@ export function loadConfig(): ConfigStore {
     const parsed = JSON5.parse(EXAMPLE_CONFIG) as ConfigStore;
     return {
       providers: parsed.providers ?? [],
-      activeProviderId: null,
-      activeModelId: null,
-      scenarioModels: parsed.scenarioModels ?? {},
-      scope: "global",
     };
   }
   try {
@@ -101,10 +85,6 @@ export function loadConfig(): ConfigStore {
     }
     return {
       providers: parsed.providers,
-      activeProviderId: parsed.activeProviderId ?? null,
-      activeModelId: parsed.activeModelId ?? null,
-      scenarioModels: parsed.scenarioModels ?? {},
-      scope: (parsed.scope as Scope) ?? "global",
     };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Unknown parse error";
@@ -134,33 +114,6 @@ export function getAllModels(store: ConfigStore): string[] {
   return store.providers.flatMap((p) => p.models);
 }
 
-// --- Active model ---
-
-export function setActiveModel(
-  store: ConfigStore,
-  modelId: string,
-): ConfigStore {
-  const found = findModel(store, modelId);
-  if (!found) return store;
-  return {
-    ...store,
-    activeProviderId: found.provider.id,
-    activeModelId: modelId,
-  };
-}
-
-// --- Scenario models ---
-
-export function updateScenarioModels(
-  store: ConfigStore,
-  updates: Partial<ScenarioModels>,
-): ConfigStore {
-  return {
-    ...store,
-    scenarioModels: { ...store.scenarioModels, ...updates },
-  };
-}
-
 // --- Delete model from provider ---
 
 export function removeModelFromProvider(
@@ -168,7 +121,6 @@ export function removeModelFromProvider(
   providerId: string,
   modelId: string,
 ): ConfigStore {
-  const wasActive = store.activeModelId === modelId;
   return {
     ...store,
     providers: store.providers.map((p) =>
@@ -176,6 +128,5 @@ export function removeModelFromProvider(
         ? { ...p, models: p.models.filter((m) => m !== modelId) }
         : p,
     ),
-    activeModelId: wasActive ? null : store.activeModelId,
   };
 }

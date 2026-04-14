@@ -19,32 +19,39 @@ There are no tests or lint commands configured.
 
 ## Architecture
 
-**Data flow:** `~/.cc-hub/config.json` (JSON5) → in-memory `ConfigStore` → `~/.claude/settings.json` (env block)
+**Data flow:** `~/.cc-hub/config.json` (JSON5) → in-memory `ConfigStore` (providers only) → `~/.claude/settings.json` (env block)
+
+All active state (current provider, model, scenario mappings, scope) is derived from Claude's settings file, not stored in `config.json`.
 
 ### Config layer (`src/store/`)
-- **config-store.ts** — CRUD for `~/.cc-hub/config.json`. Loads JSON5 config, saves as JSON. Key functions: `loadConfig`, `saveConfig`, `setActiveModel`, `findModel`, `updateScenarioModels`, `removeModelFromProvider`. Uses atomic writes (`.tmp` + `rename`).
-- **claude-config.ts** — Writes env vars into `~/.claude/settings.json`. `activateModel()` sets `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN`/`ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, and scenario aliases (`ANTHROPIC_DEFAULT_OPUS_MODEL`, etc.). Detects which auth env var is already in use and preserves that choice.
+- **config-store.ts** — CRUD for `~/.cc-hub/config.json`. Loads JSON5 config, saves as JSON. Key functions: `loadConfig`, `saveConfig`, `findModel`, `removeModelFromProvider`. Uses atomic writes (`.tmp` + `rename`).
+- **claude-config.ts** — Reads/writes env vars in `~/.claude/settings.json` or `.claude/settings.local.json`:
+  - `activateModel()` — Sets `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN`/`ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`. Preserves existing scenario mappings.
+  - `getActiveProviderAndModel()` — Derives active provider by matching `apiKey` with auth token in settings.
+  - `getScenarioModels()` / `saveScenarioModels()` — Read/write scenario alias mappings.
+  - `detectScope()` — Auto-detects scope based on existence of local settings file.
 
 ### TUI layer (`src/tui/`)
-- **app.tsx** — State machine routing between `dashboard` / `scenario` / `confirm` screens. Centralized `useInput` handler for all keyboard navigation. All state mutations go through handlers here.
-- **dashboard.tsx** — Read-only view rendering provider/model table with selection highlight.
-- **scenario-config.tsx** — Maps Claude Code role aliases (opus/sonnet/haiku/subagent) to specific model IDs. Uses left/right arrows to cycle through available models.
-- **confirm.tsx** — Yes/No confirmation dialog (currently unused, confirm is rendered inline in app.tsx via Modal).
+- **app.tsx** — State machine routing between `dashboard` / `scenario` / `confirm` screens. Centralized `useInput` handler for all keyboard navigation. Manages `scope` as local UI state (not persisted).
+- **dashboard.tsx** — Read-only view rendering provider/model table. Active state derived via `getActiveProviderAndModel()`.
+- **scenario-config.tsx** — Maps Claude Code role aliases to specific model IDs. Reads/writes directly to settings file.
 
 ### UI components (`src/components/ui/`)
-Reusable Ink components: **Table** (bordered table with `Cell[][]` API), **StatusBar** (keybinding hints bar), **Modal** (bordered overlay), **TabBar** (unused).
+Reusable Ink components: **Table** (bordered table with `Cell[][]` API), **StatusBar** (keybinding hints bar), **Modal** (bordered overlay), **TabBar** (scope selector).
 
 ### Types (`src/types.ts`)
 - `Provider` — API vendor with `id`, `name`, `baseUrl`, `apiKey`, `models: string[]`
-- `ScenarioModels` — Optional mappings for opus/sonnet/haiku/subagent aliases
-- `ConfigStore` — Full state: providers, activeProviderId, activeModelId, scenarioModels
+- `Scope` — `"global"` or `"local"`
+- `ConfigStore` — Only contains `providers: Provider[]`
 
 ### Build (`build.mjs`)
 Runs `tsc` then prepends `#!/usr/bin/env node` to `dist/cli.js`.
 
 ## Key Design Decisions
 
-- Config file uses JSON5 (supports comments) for user editing; saved back as plain JSON
-- No model editing via TUI — users edit `~/.cc-hub/config.json` directly to add/modify providers
-- When a model is selected on the dashboard, all four scenario aliases are synced to that model by default
-- Switching models writes to `~/.claude/settings.json` but requires Claude Code restart to take effect (env vars are read at startup, not hot-reloaded)
+- **Single source of truth:** All active state lives in Claude's settings file (`~/.claude/settings.json` or `.claude/settings.local.json`). `config.json` only stores provider definitions.
+- **Auto-detection:** Active provider is matched by comparing `apiKey` with `ANTHROPIC_AUTH_TOKEN`/`ANTHROPIC_API_KEY` in settings.
+- **Scope is UI-only:** Scope is auto-detected from file existence and can be toggled via Tab key, but is not persisted to `config.json`.
+- **Config file uses JSON5** (supports comments) for user editing; saved back as plain JSON
+- **No model editing via TUI** — users edit `~/.cc-hub/config.json` directly to add/modify providers
+- **Switching models writes to settings** but requires Claude Code restart to take effect (env vars are read at startup, not hot-reloaded)
